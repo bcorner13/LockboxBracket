@@ -110,22 +110,29 @@ reason about — but the *physical* relationship still matters and cannot be rea
 
 ### Known debt and traps
 
-- 🔴 **`Depth` IS NOT SAFELY PARAMETRIC — changing it silently deletes every hole.**
-  Measured 2026-09-17: at `Depth = 32.5` the `Sketch003` marker circles land at **y = −32.5**
+- ⚠️ **Two unrelated things are called "Depth". Do not conflate them:**
+  - **`Hole.Depth`** = 4.0 mm, bound to `VarSet.FlangThickness` — how deep the bore drills.
+    This one is **healthy**; leave it alone.
+  - **`VarSet.Depth`** = 195 mm — the length of the channel along Y, i.e. how far the box
+    slides in. This is the dangerous one, below.
+
+- 🔴 **`VarSet.Depth` IS NOT SAFELY PARAMETRIC — changing it silently deletes every hole.**
+  Measured 2026-09-17: at `VarSet.Depth = 32.5` the `Sketch003` marker circles land at **y = −32.5**
   while the part spans **y ∈ [−16.25, +16.25]**, so the circles sit outside the material and
   `PartDesign::Hole` cuts nothing. There is **no error of any kind** — the sketch reports
   `FullyConstrained`, every feature reads `Up-to-date`, the solid is valid and single. You get
   a bracket with no mounting holes and nothing tells you.
 
-  Cause: `Sketch003.Constraints[2]` dimensions the hole against **external geometry from
-  `Pad001.Face13`**, and that reference does not track a change in `Depth`.
+  Cause: `Sketch003.Constraints[2]` (`VarSet.Depth / (2 * VarSet.NumHoles)`) dimensions the
+  hole against **external geometry from `Pad001.Face13`**, and that reference does not track
+  a change in `VarSet.Depth`.
 
-  - `NumHoles` **is** safe (verified at 1, 6 and 8 — it does not move the external edges).
-  - `Depth` is **not**. If you change it, immediately re-measure the bore count; do not trust
-    a clean recompute or a clean audit.
+  - `NumHoles` **is** safe (verified at 1, 4, 6 and 8 — it does not move the external edges).
+  - `VarSet.Depth` is **not**. If you change it, immediately re-measure the bore count; do not
+    trust a clean recompute or a clean audit.
   - **Proper fix, not yet done:** replace that external-geometry dimension with a `DistanceY`
     from the sketch origin, e.g. `-Depth/2 + Depth/(2*NumHoles)`. That removes the feature-face
-    dependency and makes `Depth` safe. Worth doing before the box-fit iteration changes `Depth`.
+    dependency and makes `VarSet.Depth` safe. Worth doing before any box-fit iteration changes it.
 
 - **`HoleMarkerDia` (4.0 mm) does not set the bore.** It sizes the `Sketch003` marker circles,
   which `PartDesign::Hole` uses only for *positions*; the bore comes from `ThreadSize` +

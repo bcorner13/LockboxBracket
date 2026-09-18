@@ -18,10 +18,12 @@ Remediation of an existing model — not an initial build.
 > **Later changes — this table records the state at remediation, not today.**
 > - 2026-09-17: `NumHoles` 6 → **4** (8 bores total; 6/flange judged overkill). Current volume
 >   146 908.44 mm³, pitch 48.75 mm, end margins 24.375 mm, 8 screws.
-> - 2026-09-17: **`Depth` found NOT safely parametric** — the flex test above covered
->   `NumHoles` and `OuterFilletRadius` but never `Depth`. Changing `Depth` silently deletes
->   every hole (`Sketch003`'s dimension to `Pad001.Face13` does not track it). See `CLAUDE.md`.
->   Unfixed; the fix is a `DistanceY` from the sketch origin instead of external geometry.
+> - 2026-09-17: **`VarSet.Depth` found NOT safely parametric.** That is the part's length
+>   along Y — *not* `Hole.Depth`, which is correctly bound to `FlangThickness` and is fine.
+>   The flex test above covered `NumHoles` and `OuterFilletRadius` but never `VarSet.Depth`.
+>   Changing it silently deletes every hole (`Sketch003`'s dimension to `Pad001.Face13` does
+>   not track it). See `CLAUDE.md`. Unfixed; the fix is a `DistanceY` from the sketch origin
+>   instead of external geometry.
 
 ---
 
