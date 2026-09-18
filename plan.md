@@ -21,9 +21,12 @@ Remediation of an existing model — not an initial build.
 > - 2026-09-17: **`VarSet.Depth` found NOT safely parametric.** That is the part's length
 >   along Y — *not* `Hole.Depth`, which is correctly bound to `FlangThickness` and is fine.
 >   The flex test above covered `NumHoles` and `OuterFilletRadius` but never `VarSet.Depth`.
->   Changing it silently deletes every hole (`Sketch003`'s dimension to `Pad001.Face13` does
->   not track it). See `CLAUDE.md`. Unfixed; the fix is a `DistanceY` from the sketch origin
->   instead of external geometry.
+>   A large jump in it silently drops holes: `Sketch003.Constraints[2]` is an **unsigned
+>   `Distance`**, which has an inboard and an outboard solution, and the solver takes the one
+>   nearer the current geometry. Path-dependent — 195→100 in one jump gives 6 bores, the same
+>   destination in 20 mm steps gives 8. The expression arithmetic is correct and the external
+>   reference does track; an earlier note here blamed the reference and was wrong. Unfixed;
+>   the fix is a signed `DistanceY` from the sketch origin. See `CLAUDE.md`.
 
 ---
 

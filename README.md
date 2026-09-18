@@ -25,8 +25,9 @@ sketches fully constrained and attached to origin planes, every live dimension b
 Remediated 2026-09-17: symmetric hole spacing driven by one formula, holes mirrored onto both
 flanges via a sketch symmetry constraint, and `2 × NumHoles` screws seated in the bores.
 Flexing `NumHoles` returns the volume to its baseline exactly. **`VarSet.Depth` (the channel length, not
-`Hole.Depth`) is a different story — changing it silently deletes every hole; see the red
-warning in `CLAUDE.md`.**
+`Hole.Depth`) needs care — a large jump can silently drop holes, because the hole's position
+uses an unsigned distance constraint. Change it in small steps and re-check the bore count;
+see the red warning in `CLAUDE.md`.**
 
 **No successful test print yet.** Start with the test pieces rather than the 3½ hour part:
 

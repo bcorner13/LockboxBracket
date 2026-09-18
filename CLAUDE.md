@@ -116,23 +116,38 @@ reason about — but the *physical* relationship still matters and cannot be rea
   - **`VarSet.Depth`** = 195 mm — the length of the channel along Y, i.e. how far the box
     slides in. This is the dangerous one, below.
 
-- 🔴 **`VarSet.Depth` IS NOT SAFELY PARAMETRIC — changing it silently deletes every hole.**
-  Measured 2026-09-17: at `VarSet.Depth = 32.5` the `Sketch003` marker circles land at **y = −32.5**
-  while the part spans **y ∈ [−16.25, +16.25]**, so the circles sit outside the material and
-  `PartDesign::Hole` cuts nothing. There is **no error of any kind** — the sketch reports
-  `FullyConstrained`, every feature reads `Up-to-date`, the solid is valid and single. You get
-  a bracket with no mounting holes and nothing tells you.
+- 🔴 **A LARGE JUMP in `VarSet.Depth` silently drops holes. The expression is fine — the
+  constraint's SIGN is not.**
 
-  Cause: `Sketch003.Constraints[2]` (`VarSet.Depth / (2 * VarSet.NumHoles)`) dimensions the
-  hole against **external geometry from `Pad001.Face13`**, and that reference does not track
-  a change in `VarSet.Depth`.
+  `Sketch003.Constraints[2]` is an **unsigned `Distance`** (`VarSet.Depth / (2 * VarSet.NumHoles)`)
+  measured to an edge. "16.25 mm from that edge" has **two** solutions — inboard and outboard —
+  and the Sketcher solver converges to whichever is nearer the geometry's *current* position.
+  After a big jump the old position is nearer the **outboard** branch, so the circle flips to
+  the wrong side of the edge and falls outside the material, where `PartDesign::Hole` cuts
+  nothing.
 
-  - `NumHoles` **is** safe (verified at 1, 4, 6 and 8 — it does not move the external edges).
-  - `VarSet.Depth` is **not**. If you change it, immediately re-measure the bore count; do not
-    trust a clean recompute or a clean audit.
-  - **Proper fix, not yet done:** replace that external-geometry dimension with a `DistanceY`
-    from the sketch origin, e.g. `-Depth/2 + Depth/(2*NumHoles)`. That removes the feature-face
-    dependency and makes `VarSet.Depth` safe. Worth doing before any box-fit iteration changes it.
+  Proven by path-dependence (2026-09-17). Same destination, two routes:
+
+  | Route to `Depth = 100` | value | circle y | bores |
+  |---|---|---|---|
+  | jump 195 → 100 | 12.5 ✓ | **−62.5** (outside; part is −50..50) | **6** ✗ |
+  | steps 195→180→160→140→120→100 | 12.5 ✓ | −37.5 (correct) | 8 ✓ |
+
+  The arithmetic is identical in both. **It is not a maths problem and not a broken external
+  reference** — an earlier note in this file claimed the `Pad001.Face13` reference fails to
+  track `Depth`; that was wrong, it tracks fine.
+
+  There is **no error of any kind** when it happens — sketch `FullyConstrained`, every feature
+  `Up-to-date`, solid valid and single. And it is partial: at `Depth = 100` only the first
+  pattern instance fell outside, giving 6 asymmetric holes instead of 8.
+
+  - `NumHoles` **is** safe (verified at 1, 4, 6 and 8).
+  - **Workaround today:** change `VarSet.Depth` in steps of ~20 mm rather than one jump, then
+    **re-measure the bore count**. Never trust a clean recompute or a clean audit here.
+  - **Proper fix, not yet done:** replace the unsigned `Distance` with a signed `DistanceY`
+    from the sketch origin, `-Depth/2 + Depth/(2*NumHoles)`. A signed constraint has exactly
+    one solution, so the branch ambiguity disappears — and referencing the origin drops the
+    `Pad001.Face13` dependency as a bonus. Worth doing before any box-fit iteration.
 
 - **`HoleMarkerDia` (4.0 mm) does not set the bore.** It sizes the `Sketch003` marker circles,
   which `PartDesign::Hole` uses only for *positions*; the bore comes from `ThreadSize` +
