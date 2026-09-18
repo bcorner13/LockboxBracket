@@ -85,8 +85,18 @@ reason about — but the *physical* relationship still matters and cannot be rea
 - **Assembly** (`Assembly::AssemblyObject`) holds `Body001` (an `App::Link` to `Body`, grounded
   by `GroundedJoint`) and `2 × NumHoles` M3×10 ISO14582 screws, seated head-top at z=48 with a
   180° rotation about X. With a 4 mm flange, ~6 mm of thread stands proud into the desk.
-- Print orientation follows from this: channel open-side-up, flanges flat on the bed,
-  **no supports needed**.
+- 🖨 **Print orientation: ON END — the 185 mm length (part Y) is VERTICAL**, the U cross-section
+  sits on the bed. Confirmed from the slicer transform and the G-code (max Z ≈ part Y extent).
+  **No supports needed**, and the 90° countersinks land at 45°.
+
+  *Why not flat, channel open-side-up:* the flanges would then be 4 mm horizontal slabs
+  cantilevered out at z = 48 with nothing under them — that needs support. On end avoids it
+  entirely. An earlier version of this file claimed the flat orientation; that was wrong.
+
+  **Consequence for any overhang work:** print-vertical is **part Y**, not part Z. A cutout
+  that looks self-supporting in the CAD view may be lying on its side in the print. For a
+  diamond with half-diagonal `a` along part Y and `b` across it, the overhang angle from
+  vertical is `atan(b/a)` — keep **`b ≤ a`**, i.e. elongate along the 185 mm length.
 - **[UNCONFIRMED]** which lockbox the 165.5 × 195 mm interior is sized around, the material,
   and the load case — see the `[CONFIRM]` markers in `intent.md`.
 
