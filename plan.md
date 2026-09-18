@@ -1,42 +1,45 @@
 # Plan — Lockbox Bracket
 
-**Status:** awaiting approval. Per `PROJECT_BOOTSTRAP.md` Step 5, no geometry changes are
-executed until this plan is approved.
+**Status: EXECUTED 2026-09-17.** All steps applied via the two macros, validated, and saved.
+Audit clean; parametric flex verified. Kept as the record of what was changed and why.
 
-**Scope:** this is a *remediation* plan, not an initial build. The model already exists and is
-geometrically healthy. The work below closes the parametric gaps found in the intake audit.
+Remediation of an existing model — not an initial build.
+
+### Result
+
+| Check | Result |
+|---|---|
+| Audit | ✅ 0 issues |
+| Bores | 12 (`2 × NumHoles`), both flanges, uniform 32.5 mm pitch, **equal 16.25 mm end margins** |
+| Screws | 12 M3×10 seated, max axis offset **0.000 mm**, heads at z = 48, all in `Assembly.Group` |
+| Solid | valid, 1 solid, 146 686.19 mm³, 225.5 × 195 × 52 mm |
+| Flex test | `NumHoles` 6→8 gives 16 symmetric bores; 8→6 restores 146 686.19 mm³ **exactly** |
 
 ---
 
 ## Intake audit — what was measured
 
-Read via the FreeCAD MCP bridge (FreeCAD 1.1.3, GUI, xmlrpc). All facts below are measured,
-not inferred.
+Read via the FreeCAD MCP bridge (1.1.3, GUI, xmlrpc). Measured, not inferred.
 
-**Healthy:**
+**Healthy:** one valid manifold solid, 147 019.56 mm³, 225.5 × 195 × 52 mm, no object in an
+error state, all 4 sketches `FullyConstrained = True`, all attached to **origin planes**,
+13 expressions already bound including both `AttachmentOffset.Base.z` offsets.
 
-- Single valid manifold solid, 1 solid, volume 147 019.56 mm³, bbox 225.5 × 195 × 52 mm.
-- Zero objects in an error or touched state.
-- All 4 sketches report `FullyConstrained = True`.
-- All 4 sketches attach to **origin planes** (`XY_Plane`, `XZ_Plane`) with `MapMode = FlatFace`.
-  Global hard rule #3 (no feature-face sketch attachment) is **already satisfied** — no
-  remediation needed.
-- 13 expression bindings already in place, including both `AttachmentOffset.Base.z` bindings.
-
-**Defects to fix:**
+**Defects:**
 
 | # | Object | Property | Value | Problem |
 |---|---|---|---|---|
 | 1 | `Fillet` | `Radius` | 8.0 mm | Hard-coded. Flagged by audit. |
 | 2 | `Chamfer` | `Size` | 0.4 mm | Hard-coded. Flagged by audit. |
-| 3 | `Hole` | `Diameter` | 3.4 mm | Hard-coded. **Missed by the audit script.** |
-| 4 | `Hole` | `HoleCutDiameter` / `HoleCutCountersinkAngle` | 6.7 mm / 90° | Hard-coded. Missed by audit. |
-| 5 | `VarSet.HoleDiameter` | — | 4.0 mm | **Dead knob.** Drives only the `Sketch003` circle, which `PartDesign::Hole` ignores (it uses the sketch as a position reference and cuts at its own `Diameter`). Changing this variable changes nothing in the solid. |
-| 6 | `Sketch003` + `LinearPattern` | spacing | — | **Three inconsistent divisors** for one concept. |
+| 3 | `Hole` | `Diameter` | 3.4 mm | ~~Hard-coded~~ **WITHDRAWN.** Property is `ReadOnly` — derived from `ThreadSize = M3x0.5` + `ThreadFit = Medium` (ISO 273 medium clearance → 3.4 mm). Cannot be bound, and should not be: the standard is the driver. |
+| 4 | `Hole` | `HoleCutDiameter` / `HoleCutCountersinkAngle` | 6.7 mm / 90° | ~~Hard-coded~~ **WITHDRAWN.** Auto-computed from the ISO countersink table while `HoleCutCustomValues = False`. Binding them would require forcing custom values, freezing the countersink off-standard. |
+| 5 | `VarSet.HoleDiameter` | — | 4.0 mm | **Dead knob** — drives only the `Sketch003` marker circle, which `PartDesign::Hole` ignores (the sketch supplies positions; the bore comes from `ThreadSize`). Proof: marker Ø4.0, measured bore Ø3.4. |
+| 6 | `Sketch003` + `LinearPattern` | spacing | — | **Three divisors for one concept** (below). |
+| 7 | `Sketch003` / `Hole` | — | — | **Holes on one flange only** (all 6 bores at x = +97.75). |
+| 8 | 6 × `Screw00n` | `Placement` | — | **Screws not seated.** Five are stacked at (−3.25, 0, 0); one at (54.12, −108.204, 0). None is at a bore. They are also **outside** `Assembly.Group`. |
+| 9 | `Joint` ("Fixed") | `Reference1/2` | `None` | Empty, non-functional joint. |
 
 ### Defect 6 in detail
-
-Three expressions describe the same hole pattern using three different formulas:
 
 ```
 Sketch003.Constraints[2] = Depth / NumHoles            = 32.5     (first-hole offset)
@@ -44,132 +47,145 @@ LinearPattern.Length     = Depth - Depth/(NumHoles-2)  = 139.286  (span)
 LinearPattern.Offset     = Depth / (NumHoles + 1)      = 27.857   (inert in Length mode)
 ```
 
-Measured result: 6 holes at y = −65, −37.143, −9.286, 18.571, 46.429, 74.286. Spacing is a
-uniform 27.857 mm, but the end margins are **32.5 mm at one end and 23.21 mm at the other** —
-the pattern is not centred. `NumHoles - 2` in the span also means the model breaks if
-`NumHoles` is ever set to 2.
+Measured bores at y = −65, −37.143, −9.286, 18.571, 46.429, 74.286: uniform 27.857 mm pitch
+but **end margins of 32.5 vs 23.21 mm**. `NumHoles - 2` also divides by zero at `NumHoles = 2`.
+
+### Additional fragility (not remediated — documented only)
+
+Three sketches use **external geometry from feature faces**: `Sketch001`→`Pad.Face1`,
+`Sketch002`→`Pocket.Face6/Face12`, `Sketch003`→`Pad001.Face13`. Attachment is clean, so this
+is a topological-naming risk, not a DAG cycle. Left alone deliberately: re-cutting these
+references would disturb working, fully-constrained sketches for no functional gain.
 
 ---
 
 ## PARAMETERS
 
-`VarSet` stays **in-document** (deliberate deviation from the bootstrap's `Params.FCStd`
-requirement — see `CLAUDE.md`). Expressions keep the local `VarSet.Name` form.
+`VarSet` stays **in-document** (deliberate deviation — see `CLAUDE.md`), local `VarSet.Name` form.
 
 ### Existing (unchanged)
 
-| Name | Type | Value |
-|---|---|---|
-| `Width` | `App::PropertyLength` | 169.5 mm |
-| `Depth` | `App::PropertyLength` | 195.0 mm |
-| `WallHeight` | `App::PropertyLength` | 48.0 mm |
-| `WallThickness` | `App::PropertyLength` | 2.0 mm |
-| `CornerRadius` | `App::PropertyLength` | 7.0 mm |
-| `FlangWidth` | `App::PropertyLength` | 30.0 mm |
-| `FlangThickness` | `App::PropertyLength` | 4.0 mm |
-| `FlangRadius` | `App::PropertyLength` | 2.0 mm |
-| `NumHoles` | `App::PropertyInteger` | 6 |
+`Width` 169.5 · `Depth` 195.0 · `WallHeight` 48.0 · `WallThickness` 2.0 · `CornerRadius` 7.0 ·
+`FlangWidth` 30.0 · `FlangThickness` 4.0 · `FlangRadius` 2.0 · `NumHoles` 6
 
 ### To add
 
-| Name | Type | Value | Drives | Why a new knob |
-|---|---|---|---|---|
-| `OuterFilletRadius` | `App::PropertyLength` | 8.0 mm | `Fillet.Radius` | Distinct concept from `CornerRadius` (7.0) — different value today, so per global rule #5 it does not get folded into the existing variable. |
-| `ChamferSize` | `App::PropertyLength` | 0.4 mm | `Chamfer.Size` | First-layer edge break; its own concern. |
-| `HoleCsinkDiameter` | `App::PropertyLength` | 6.7 mm | `Hole.HoleCutDiameter` | M3 countersink head Ø. |
-| `HoleCsinkAngle` | `App::PropertyAngle` | 90.0 ° | `Hole.HoleCutCountersinkAngle` | Countersink included angle. |
-
-### To retask
-
-| Name | From | To | Why |
+| Name | Type | Value | Drives |
 |---|---|---|---|
-| `HoleDiameter` | 4.0 mm, drives an inert sketch circle | **3.4 mm**, bound to `Hole.Diameter` | Makes the dead knob live. 3.4 mm is the standard M3 clearance bore and is the diameter the solid is actually cut at today, so **the geometry does not change** — the variable simply starts controlling it. The `Sketch003` circle keeps its binding and stays inert-by-design (it is a position reference). |
+| `OuterFilletRadius` | `App::PropertyLength` | 8.0 mm | `Fillet.Radius` — distinct from `CornerRadius` (7.0); separate concept, separate knob (global rule #5) |
+| `ChamferSize` | `App::PropertyLength` | 0.4 mm | `Chamfer.Size` |
+| `ScrewLength` | `App::PropertyLength` | 10.0 mm | screw generation (M3×10) |
 
-Fastener clearance is deliberately kept as its own concept (global rule #4): `HoleDiameter`
-is a **bolt-hole clearance** interface and is not shared with any other fit.
+No countersink Params: those dimensions are standard-derived (defects 3–4, withdrawn).
+
+### To rename
+
+`HoleDiameter` → **`HoleMarkerDia`** (stays 4.0 mm). The variable is real but its name lies:
+it sizes the `Sketch003` marker circle, which only supplies hole *positions*. The actual bore
+is set by `Hole.ThreadSize = M3x0.5` with `ThreadFit = Medium`. Renaming it is the honest fix —
+"one knob, one concern" (global rule #5) — and stops a future session from "correcting" it to
+3.4 mm in the belief that it drives the bore. `Sketch003.Constraints[0]` is rebound to the new
+name; the old property is removed.
+
+**Bolt-hole clearance** therefore has no Param of its own by design: it is delegated to the ISO
+fit class on the `Hole` feature. Recorded in `CLAUDE.md` so rule #4 is not read as violated.
 
 ---
 
 ## FEATURE TREE
 
-Unchanged. No features are added, removed, or reordered. Tip stays `LinearPattern`.
+No features added, removed, or reordered. Tip stays `LinearPattern`.
 
 ```
 Body
-├── Sketch         (XY_Plane)  outer footprint      → Width, Depth
-├── Pad            48 mm                            → WallHeight
-├── Fillet         2 edges, r8                      → OuterFilletRadius      [BIND]
-├── Sketch001      (XZ_Plane)  wall section         → WallThickness ×3, CornerRadius
-├── Pocket         UpToFace Fillet.Face1            (hollows the channel)
-├── Sketch002      (XY_Plane, offset z=WallHeight)  flange profile → FlangWidth, FlangRadius
-├── Pad001         4 mm                             → FlangThickness
-├── Mirrored       about Sketch002 V_Axis           (second flange)
-├── Chamfer        12 edges, 0.4                    → ChamferSize            [BIND]
-├── Sketch003      (XY_Plane, offset z=WallHeight)  hole centre → HoleDiameter, FlangWidth/2, spacing
-├── Hole           M3 c'sunk, depth=FlangThickness  → HoleDiameter, HoleCsink*  [BIND]
-└── LinearPattern  6 occurrences along Sketch003 V_Axis → NumHoles, spacing  [REVISE]
+├── Sketch         (XY_Plane)   footprint          → Width, Depth
+├── Pad            48                              → WallHeight
+├── Fillet         2 edges                         → OuterFilletRadius        [BIND]
+├── Sketch001      (XZ_Plane)   wall section       → WallThickness ×3, CornerRadius
+├── Pocket         UpToFace Fillet.Face1
+├── Sketch002      (XY_Plane @ z=WallHeight)       → FlangWidth, FlangRadius
+├── Pad001         4                               → FlangThickness
+├── Mirrored       about Sketch002 V_Axis          (second flange)
+├── Chamfer        12 edges                        → ChamferSize              [BIND]
+├── Sketch003      (XY_Plane @ z=WallHeight)       → HoleDiameter, FlangWidth/2, spacing
+│                  + SECOND CIRCLE mirrored about V_Axis                      [ADD]
+├── Hole           M3 c'sunk, Depth=FlangThickness → HoleDiameter, HoleCsink* [BIND]
+│                  Profile widened from Edge1 to the whole sketch             [CHANGE]
+└── LinearPattern  → NumHoles, symmetric span                                 [REVISE]
 ```
-
----
 
 ## CONSTRAINT STRATEGY
 
-1. **No sketch geometry is touched.** All four sketches are already fully constrained and
-   correctly bound. No coordinate edits (global rule #2), no constraint deletion/re-adding.
-2. **Bindings are added via `setExpression`** on feature properties only — `Fillet.Radius`,
-   `Chamfer.Size`, `Hole.Diameter`, `Hole.HoleCutDiameter`, `Hole.HoleCutCountersinkAngle`.
-3. **Hole spacing is re-expressed** so one concept has one formula. Proposed symmetric scheme:
+1. **No existing sketch geometry is touched**; no coordinate edits (global rule #2). All four
+   sketches stay fully constrained.
+
+2. **Bindings via `setExpression`** on feature properties: `Fillet.Radius` →
+   `OuterFilletRadius`, `Chamfer.Size` → `ChamferSize`. The `Hole` feature's dimensions are
+   left to the ISO standard (defects 3–4 withdrawn) and recorded as audit exemptions.
+
+3. **Symmetric spacing** — one concept, one formula.
+
+   `LinearPattern.Mode` is **`Spacing`**, so `Offset` is the live driver and `Length` is
+   inert. (Both happened to evaluate to 27.857, which is why the two are easy to confuse —
+   the mode had to be read to tell them apart.)
 
    ```
-   Sketch003.Constraints[2] = Depth / (2 * NumHoles)     = 16.25   (half-pitch edge margin)
-   LinearPattern.Length     = Depth - Depth / NumHoles   = 162.5   (span)
-   LinearPattern.Occurrences= NumHoles                             (unchanged)
+   Sketch003.Constraints[2] = Depth / (2 * NumHoles)   = 16.25   (half-pitch end margin)
+   LinearPattern.Offset     = Depth / NumHoles         = 32.5    (pitch)     [LIVE]
+   LinearPattern.Occurrences= NumHoles                           (unchanged)
+   LinearPattern.Length     — expression cleared                 (inert; contradictory)
    ```
 
-   Result: uniform 32.5 mm pitch, **equal 16.25 mm margins at both ends**, and no division by
-   `NumHoles - 2`, so the pattern stays valid down to `NumHoles = 1`. **This moves the holes.**
-   It is the only change in the plan that alters the printed part.
+   First bore at 16.25 from the near edge, last at 16.25 + 5 × 32.5 = 178.75, leaving
+   195 − 178.75 = **16.25 at the far edge — equal margins**. No `NumHoles - 2` term, so it
+   stays valid down to `NumHoles = 1`.
 
-   *Alternative if the current 32.5 mm end margin is deliberate:* keep
-   `Constraints[2] = Depth / NumHoles` and set `LinearPattern.Length = Depth - 2 * (Depth / NumHoles)`
-   — that centres the pattern while preserving the existing first-hole position, at 26 mm pitch.
-   **Say which you want; symmetric half-pitch is the default if you don't.**
+4. **Mirror the holes onto the second flange** by adding a second circle to `Sketch003`,
+   constrained `Symmetric` about the sketch V_Axis and `Equal` to the first — rather than by
+   adding a `Mirrored`/`MultiTransform` feature. Reasons: the flanges are already symmetric
+   about x = 0, a sketch-level symmetry constraint is inherently parametric, it keeps the
+   feature tree flat, and it avoids chaining one transform feature onto another (which
+   PartDesign does not support without `MultiTransform`). `Hole.Profile` is widened from
+   `Edge1` to the whole sketch so both circles are drilled; `LinearPattern` then patterns both.
+   Result: **2 × NumHoles = 12 bores.**
 
-4. **Delivery:** one reviewable, idempotent `macros/bind_unbound_params.FCMacro` (global rule
-   #7 — no typed MCP tool covers `setExpression`, so this is a legitimate macro/Python case).
-   The macro skips any Param that already exists and re-applies bindings safely on re-run.
+5. **Screws seated in the bores.** The head of an ISO14582 screw sits at its placement origin
+   with the shank running local −Z (verified from the shape: local z ∈ [−10, 0]). With a 180°
+   rotation about X the shank points +Z. So each screw gets
+   `Placement = (x_bore, y_bore, WallHeight)`, rotation 180° about X — head top flush with the
+   flange underside at z = 48, thread running up through the 4 mm flange and ~6 mm into the desk.
+   The screw set is regenerated to `2 × NumHoles`, and the screws are moved **into**
+   `Assembly.Group`.
+
+6. **Delivery:** two reviewable, idempotent macros under `macros/` (global rule #7 — no typed
+   MCP tool covers `setExpression`, sketch symmetry constraints, or Fasteners-WB object
+   creation):
+   - `remediate_parametric.FCMacro` — steps 1–4
+   - `place_screws.FCMacro` — step 5; re-run after any change to `NumHoles`
 
 ---
 
-## TOOLING FIX (outside the model)
+## TOOLING FIX
 
-`scripts/audit_parametric.py` line 172 checks only
-`["Length", "Length2", "Radius", "Offset", "Size"]`, so it silently misses `Hole.Diameter`,
-`Hole.Depth`, and the countersink dimensions — defects 3 and 4 above passed a "clean" audit.
-This project's copy will be extended to cover `Diameter` and the `Hole` property group.
-
-The root canonical copy is **not** edited (per standing instruction: propagate fixes outward
-only with Bradley's say-so). This is a third known bug in that script, after the two recorded
-in memory.
+`scripts/audit_parametric.py` checks only `Length/Length2/Radius/Offset/Size`, so
+`PartDesign::Hole` is effectively unaudited — defects 3 and 4 passed a "clean" run. This
+project's copy gains `Diameter` and `Depth` coverage. The root canonical copy is **not**
+edited (standing instruction). This is a third bug in that script, after the two in memory.
 
 ---
 
 ## VALIDATION
 
-Run in order; all must pass before the work is called done.
+1. `python3 scripts/audit_parametric.py` → 0 issues.
+2. Recompute → no object in an error or touched state.
+3. `isValid() == True`, exactly 1 solid in the Body.
+4. **Bore census:** exactly `2 × NumHoles` = 12 bores of Ø3.4, at x = ±97.75, with **equal
+   end margins** (16.25 mm) and uniform 32.5 mm pitch — re-measured from `Shape.Faces`.
+5. **Screw census:** 12 screws, each within 0.01 mm of a bore axis, head top at z = 48.
+6. **Parametric proof:** set `NumHoles` 6 → 8, recompute, confirm 16 symmetric bores; flex
+   `OuterFilletRadius` 8 → 6; restore both and confirm volume returns to the pre-change
+   baseline of 147 019.56 mm³ **exactly**.
+7. Steps 1–2 and the bindings must not move material; only the spacing fix and the mirrored
+   flange may change volume, and only by relocating/adding bores.
 
-1. `python3 scripts/audit_parametric.py` → **0 issues** (with the extended check in place).
-2. Recompute the document → no object in an error or touched state.
-3. Shape integrity: `isValid() == True`, exactly **1 solid**, still watertight.
-4. **Geometry regression:** volume and bbox compared against the pre-change baseline
-   (147 019.56 mm³ / 225.5 × 195 × 52 mm). Steps 1–2 and the binding work must leave both
-   *identical* — the retasked `HoleDiameter` is specifically chosen not to move material.
-   Only the step-3 spacing change may alter volume, and it must alter it only by relocating
-   holes (hole count and bore unchanged).
-5. **Parametric proof:** flex each new Param (e.g. `OuterFilletRadius` 8 → 6, `NumHoles`
-   6 → 8), recompute, confirm the solid changes as expected and stays valid, then restore the
-   original values and confirm the volume returns to baseline exactly.
-6. Re-measure hole positions via `Shape.Faces` cylinder centres to confirm symmetric margins.
-
-Nothing is saved to disk until validation passes and Bradley approves the result
-(`PROJECT_BOOTSTRAP.md` Step 6 — never save automatically).
+Nothing is saved until validation passes (`PROJECT_BOOTSTRAP.md` Step 6).

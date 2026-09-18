@@ -1,12 +1,14 @@
 # Project rules — Lockbox Bracket
 
-This project's parametric risk is concentrated in **one place: the hole pattern**. Three
-different expressions (`Sketch003.Constraints[2]`, `LinearPattern.Length`,
-`LinearPattern.Offset`) currently describe the same spacing concept with three different
-divisors, one of which divides by `NumHoles - 2`. The rest of the model is clean and fully
-bound — do not go looking for trouble elsewhere, and do not "tidy" the hole expressions
-without reading `plan.md` first. The second risk is quieter: `VarSet.HoleDiameter` was a
-**dead knob** that drove nothing in the solid, and the audit script did not catch it.
+This project's parametric risk was concentrated in **one place: the hole pattern**, and it has
+been remediated (2026-09-17). Three expressions once described the same spacing concept with
+three different divisors, one of which divided by `NumHoles - 2`; the pattern is now driven by
+a single formula and is symmetric. The lasting lesson is the quieter one: `VarSet.HoleDiameter`
+was a **dead knob** — bound, but to a sketch circle the `Hole` feature ignores — and the audit
+script reported the model clean the whole time.
+
+**So: a bound expression is not proof that a Param drives geometry.** When a knob matters here,
+flex it and re-measure the solid. Do not trust a clean audit alone.
 
 ---
 
@@ -15,11 +17,12 @@ without reading `plan.md` first. The second risk is quieter: `VarSet.HoleDiamete
 These restate the global rules in `~/.claude/CLAUDE.md` with project-specific context.
 
 1. **Everything parametric.** Intake audit (2026-09-17) found the model largely healthy —
-   13 bindings, all 4 sketches fully constrained — with hard-coded values isolated to the
-   *dress-up and hole features*: `Fillet.Radius` (8.0), `Chamfer.Size` (0.4), `Hole.Diameter`
-   (3.4), and the two countersink dimensions. Those are the worst offenders, and they are the
-   offenders precisely because `scripts/audit_parametric.py` only flagged two of the five.
-   Feature properties outside `Length/Length2/Radius/Offset/Size` are this project's blind spot.
+   13 bindings, all 4 sketches fully constrained. Two genuine literals (`Fillet.Radius` 8.0,
+   `Chamfer.Size` 0.4) are now bound to `OuterFilletRadius` and `ChamferSize`. Three further
+   "literals" turned out to be **standard-derived, not hard-coded** — see the audit exemptions
+   below; chasing them would have frozen the fastener off-standard. Feature properties outside
+   `Length/Length2/Radius/Offset/Size` were this project's blind spot until the audit script
+   was extended here.
 
 2. **No fixing geometry by editing raw sketch coordinates.** No prior incident in this project;
    rule applies preventively. Note the standing risk: all four sketches are already
@@ -35,13 +38,17 @@ These restate the global rules in `~/.claude/CLAUDE.md` with project-specific co
    cycle. Leave it unless it actually breaks; if it does, replace it with `ThroughAll` rather
    than re-picking the face.
 
-4. **Clearance concepts stay decoupled.** This project has exactly one mating interface, so it
-   has exactly one clearance Param:
-   - `HoleDiameter` (3.4 mm) — **bolt-hole clearance** for M3 countersunk fasteners passing
-     through the mounting flanges into whatever the bracket is fixed to.
+4. **Clearance concepts stay decoupled.** This project has exactly one mating interface —
+   fastener-in-flange — and it deliberately has **no clearance Param of its own**:
 
-   There is no press fit, rail fit, or lid fit here. If a lid or retainer is ever added, it
-   gets its **own** clearance Param — never reuse `HoleDiameter`.
+   - **Bolt-hole clearance is delegated to the ISO fit class** on the `Hole` feature:
+     `ThreadSize = M3x0.5` with `ThreadFit = Medium` yields the ReadOnly `Diameter = 3.4 mm`
+     (ISO 273 medium). The standard is the knob. Adding a Param here would duplicate it and
+     let the two drift apart.
+
+   This is *not* a violation of the rule — it is the rule's goal reached by a better route.
+   If a lid, retainer, or press fit is ever added, it gets its **own** clearance Param; never
+   overload the fastener fit to express it.
 
 ---
 
@@ -58,14 +65,22 @@ reason about — but the *physical* relationship still matters and cannot be rea
 - **Mounting flanges** run the full depth along the top outer edge of each side wall, 30 mm wide
   × 4 mm thick, generated as `Pad001` and `Mirrored` about `Sketch002`'s V_Axis. The flanges are
   the only fixing interface — the bracket hangs or bolts by these two strips.
-- **Six countersunk M3 clearance holes per flange** (3.4 mm bore, 6.7 mm × 90° countersink,
-  depth bound to `FlangThickness`). Countersinks open **upward**, so heads sit flush with the
-  flange top.
+- **The bracket mounts under a desk.** The flanges go up against the desk underside and the
+  screws pass **up through the flange into the desk**.
+- **`NumHoles` countersunk M3 clearance holes per flange**, `2 × NumHoles` total (12 at
+  `NumHoles = 6`): 3.4 mm bore, 6.7 mm × 90° countersink, depth bound to `FlangThickness`.
+  Countersinks open **downward** (Ø6.6 at z=48, closing to Ø3.4 by z≈49.7) so the heads seat
+  flush on the flange *underside* — verified by measurement, not assumed.
+- Both flanges are drilled from **one sketch**: `Sketch003` holds two circles held `Symmetric`
+  about the sketch V axis and `Equal` to each other. `Hole` drills both; `LinearPattern` then
+  repeats them along the depth. So the mirroring is a sketch constraint, not a feature.
+- **Assembly** (`Assembly::AssemblyObject`) holds `Body001` (an `App::Link` to `Body`, grounded
+  by `GroundedJoint`) and `2 × NumHoles` M3×10 ISO14582 screws, seated head-top at z=48 with a
+  180° rotation about X. With a 4 mm flange, ~6 mm of thread stands proud into the desk.
 - Print orientation follows from this: channel open-side-up, flanges flat on the bed,
   **no supports needed**.
-- **[UNCONFIRMED]** what the bracket mounts to and which lockbox it is sized around — see the
-  `[CONFIRM]` markers in `intent.md`. Do not treat the 169.5 × 195 mm interior as validated
-  against a real box until Bradley says so.
+- **[UNCONFIRMED]** which lockbox the 165.5 × 195 mm interior is sized around, the material,
+  and the load case — see the `[CONFIRM]` markers in `intent.md`.
 
 ---
 
@@ -73,8 +88,10 @@ reason about — but the *physical* relationship still matters and cannot be rea
 
 | File | Role | Depends on | Status |
 |---|---|---|---|
-| `Lockbox Bracket.FCStd` | The entire part: `Body` + in-document `VarSet` | — (self-contained) | ⚠️ 5 unbound literals + 1 dead Param + inconsistent hole spacing — see `plan.md` |
-| `3mf/Lockbox Bracket.3mf` | Sliced print file (2026-09-17) | the FCStd | ⚠️ sliced from the **pre-remediation** model; re-slice after the hole pattern is fixed |
+| `Lockbox Bracket.FCStd` | The entire part: `Body` + in-document `VarSet` + `Assembly` with the screws | — (self-contained) | ✅ audit clean; parametric flex verified |
+| `macros/remediate_parametric.FCMacro` | Params, bindings, symmetric spacing, mirrored holes | the FCStd | ✅ idempotent |
+| `macros/place_screws.FCMacro` | Seats `2 × NumHoles` screws in the bores | the FCStd | ✅ idempotent; **re-run after changing `NumHoles`** |
+| `3mf/Lockbox Bracket.3mf` | Sliced print file (2026-09-17) | the FCStd | ⚠️ **STALE** — sliced from the pre-remediation model (6 holes, one flange, asymmetric). Re-slice before printing. |
 
 **There is no `Params.FCStd`, and that is deliberate.**
 
@@ -85,30 +102,43 @@ reason about — but the *physical* relationship still matters and cannot be rea
 > deviation would rewrite all 13 bindings for no benefit. The cross-document form only earns
 > its keep when more than one document shares the variables.
 
-### Known debt
+### Known debt and traps
 
-- `Hole.Diameter = 3.4 mm` is hard-coded while `VarSet.HoleDiameter = 4.0 mm` drives only the
-  `Sketch003` circle. `PartDesign::Hole` uses its profile sketch as a **position reference** and
-  cuts at its own `Diameter`, so that circle's size is inert and the variable is dead. Do not
-  "fix" this by changing `Hole.Diameter` to 4.0 — 3.4 mm is correct M3 clearance and the bore is
-  right; the *binding* is what's missing.
+- **`HoleMarkerDia` (4.0 mm) does not set the bore.** It sizes the `Sketch003` marker circles,
+  which `PartDesign::Hole` uses only for *positions*; the bore comes from `ThreadSize` +
+  `ThreadFit`. It was called `HoleDiameter` until 2026-09-17, which invited exactly the wrong
+  fix. **Do not "correct" it to 3.4 mm** — it drives nothing but the marker.
+- **Three sketches use external geometry from feature faces:** `Sketch001`→`Pad.Face1`,
+  `Sketch002`→`Pocket.Face6/Face12`, `Sketch003`→`Pad001.Face13`. Attachment is clean (origin
+  planes), so this is topological-naming fragility, not a DAG cycle — a renumbered face would
+  silently move geometry. Left as-is deliberately: re-cutting these would disturb working,
+  fully-constrained sketches. **If holes or walls ever jump after an upstream edit, look here
+  first.**
+- **`LinearPattern.Mode` is `Spacing`**, so `Offset` is the live driver and `Length` is inert.
+  Both once evaluated to 27.857, which made them easy to confuse. Edit `Offset`.
 - The internal document name is **`Unnamed`** (label is `Lockbox Bracket`). Scripts must use
-  `FreeCAD.getDocument("Unnamed")` or resolve by label — `getDocument("Lockbox Bracket")` fails.
+  `FreeCAD.getDocument("Unnamed")` — `getDocument("Lockbox Bracket")` fails.
+- The Fasteners workbench **re-labels its screws on recompute**, so labels set by
+  `place_screws.FCMacro` do not stick. Cosmetic; identify screws by `Placement`, not `Label`.
 
 ---
 
 ## Params variables (summary)
 
-In-document `VarSet`, 9 live variables, all `App::PropertyLength` except `NumHoles`
+In-document `VarSet`, 13 variables, all `App::PropertyLength` except `NumHoles`
 (`App::PropertyInteger`):
 
 - **Shell geometry:** `Width` (169.5), `Depth` (195.0), `WallHeight` (48.0),
   `WallThickness` (2.0), `CornerRadius` (7.0)
 - **Flange:** `FlangWidth` (30.0), `FlangThickness` (4.0), `FlangRadius` (2.0)
   *(note the spelling — `Flang`, not `Flange`; it is consistent across all bindings, so leave it)*
-- **Fastener:** `NumHoles` (6), `HoleDiameter` (4.0 — **currently dead**, see above)
+- **Dress-up:** `OuterFilletRadius` (8.0 → `Fillet.Radius`), `ChamferSize` (0.4 → `Chamfer.Size`)
+- **Fastener:** `NumHoles` (6), `ScrewLength` (10.0, used by `place_screws.FCMacro`),
+  `HoleMarkerDia` (4.0 — sketch marker only, **not** the bore)
 
-`plan.md` adds `OuterFilletRadius`, `ChamferSize`, `HoleCsinkDiameter`, `HoleCsinkAngle`.
+Hole spacing derives entirely from `Depth` and `NumHoles`:
+`Sketch003.Constraints[2] = Depth / (2 × NumHoles)` (end margin) and
+`LinearPattern.Offset = Depth / NumHoles` (pitch) — equal margins at both ends by construction.
 
 ---
 
@@ -135,12 +165,24 @@ not sufficient:**
 - This copy came from `MagicCardBox`, which carries fixes for **two** enum bugs in the canonical
   script (the `DIMENSIONAL_TYPES` constraint table and the Pad/Pocket `Type` enum). Do not
   replace it with the root canonical copy.
-- **Third bug, found here 2026-09-17:** the feature-dimension check covers only
-  `Length/Length2/Radius/Offset/Size`, so `Hole.Diameter`, `Hole.Depth`, and the countersink
-  dimensions are never checked. Three real defects in this project passed a "clean" audit.
-- The script also does not check `TaperAngle`, `Placement`, sketch `AttachmentOffset`, datum
+- **Third bug, found here 2026-09-17 and fixed in this copy:** the script never examined
+  `PartDesign::Hole` at all. It now does, checking `Depth` and only when
+  `DepthType = Dimension` (index 0; `ThroughAll` makes `Depth` inert). The canonical copy and
+  every other project still lack this.
+- **Deliberately exempt — standard-derived, not literals:**
+  - `Hole.Diameter` — **ReadOnly**, computed from `ThreadSize = M3x0.5` + `ThreadFit = Medium`
+    (ISO 273 → 3.4 mm).
+  - `Hole.HoleCutDiameter` / `HoleCutCountersinkAngle` / `HoleCutDepth` — from the ISO
+    countersink table while `HoleCutCustomValues = False`.
+
+    Binding any of these would require forcing custom values and freezing the fastener
+    off-standard. **Leave them unbound.** Change the fastener by changing `ThreadSize`.
+- The script still does not check `TaperAngle`, `Placement`, sketch `AttachmentOffset`, datum
   attachment, or external geometry. This project relies on two `AttachmentOffset.Base.z`
-  bindings that the audit cannot see — verify those by hand via the MCP bridge.
+  bindings and three feature-face external-geometry references the audit cannot see — verify
+  those by hand via the MCP bridge.
+- It also cannot see the `Assembly`: screw placement is validated by re-running
+  `place_screws.FCMacro` and checking each screw against a bore axis, not by the audit.
 
 ---
 
@@ -191,6 +233,13 @@ Relevant to this project:
   it returns a bare `"Failed to get object"` for sketches, pads, and bodies. Read those via
   `execute_python` (`sk.Geometry`, `sk.Constraints`, `sk.ExpressionEngine`, `obj.Shape`).
   It works fine on the `VarSet`.
+- **`execute_python` returns over XML-RPC, so dict keys must be strings.** An integer-keyed
+  dict in `_result_` fails with `dictionary key must be string`.
+- **Changing `NumHoles` is a two-step operation:** recompute the Body, then re-run
+  `place_screws.FCMacro` so the screw set matches the new bore count. The macro reads bore
+  positions **from the solid**, so it cannot drift from the geometry.
+- Both macros are symlinked into `~/Library/Application Support/FreeCAD/v1-1/Macro/`, so they
+  appear under Macro → Macros… Neither saves the document.
 - Everything lives at the project root; there is no `cad/` subdirectory.
 
 ---

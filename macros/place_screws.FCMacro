@@ -1,0 +1,126 @@
+# -*- coding: utf-8 -*-
+"""
+place_screws.FCMacro — Lockbox Bracket
+
+Seats one M3x10 ISO14582 countersunk screw in every bore, and puts them in the
+Assembly.
+
+Bore positions are READ FROM THE SOLID, not from a hand-derived formula, so the
+screw set always matches whatever the model actually produced. Re-run this macro
+after changing NumHoles (or anything else that moves the holes) and the screw set
+regenerates to match.
+
+Orientation: an ISO14582 screw's origin is the centre of its head top face with the
+shank running local -Z (verified: local z in [-10, 0]). A 180 deg rotation about X
+turns the shank to +Z, so with Base = (x_bore, y_bore, WallHeight) the head seats
+flush in the countersink at the flange underside and ~6 mm of thread runs up through
+the 4 mm flange into the desk.
+
+Idempotent — safe to re-run. Does NOT save the document.
+
+Run: Macro -> Macros... -> place_screws -> Execute
+"""
+
+import FreeCAD
+
+DOC_NAME = "Unnamed"
+BORE_RADIUS = 1.7          # M3 medium-fit clearance, ISO 273
+TOL = 0.05
+PREFIX = "BracketScrew"    # label prefix for macro-managed screws
+
+doc = FreeCAD.getDocument(DOC_NAME)
+vs = doc.getObject("VarSet")
+asm = doc.getObject("Assembly")
+body = doc.getObject("Body")
+
+log = []
+
+
+# ------------------------------------------------- 1. find the bores in the solid
+shape = body.Tip.Shape
+bores = set()
+for f in shape.Faces:
+    s = f.Surface
+    if s.__class__.__name__ == "Cylinder" and abs(s.Radius - BORE_RADIUS) < TOL:
+        bores.add((round(s.Center.x, 4), round(s.Center.y, 4)))
+bores = sorted(bores)
+
+if not bores:
+    raise RuntimeError("No M3 bores found in the solid - has the model changed?")
+
+expected = 2 * int(vs.NumHoles)
+if len(bores) != expected:
+    FreeCAD.Console.PrintWarning(
+        "place_screws: found %d bores but NumHoles implies %d. Using the %d actually "
+        "present.\n" % (len(bores), expected, len(bores)))
+log.append("found %d bores" % len(bores))
+
+
+# ------------------------------------------- 2. collect existing screw objects
+# Anything driven by the Fasteners workbench proxy counts as a screw, so the six
+# hand-placed ones from the original assembly get adopted rather than duplicated.
+screws = [o for o in doc.Objects
+          if o.TypeId == "Part::FeaturePython"
+          and o.__class__.__name__ != "DocumentObjectGroup"
+          and hasattr(o, "Diameter") and hasattr(o, "Length")
+          and hasattr(o, "Type")]
+screws.sort(key=lambda o: o.Name)
+log.append("found %d existing screw objects" % len(screws))
+
+if not screws:
+    raise RuntimeError(
+        "No existing Fasteners screw to use as a template. Add one M3x10 ISO14582 "
+        "screw with the Fasteners workbench, then re-run.")
+
+template = screws[0]
+
+
+# ------------------------------------- 3. match the screw count to the bore count
+while len(screws) < len(bores):
+    new = doc.copyObject(template, False)
+    screws.append(new)
+    log.append("ADD   screw %s (copied from %s)" % (new.Name, template.Name))
+
+surplus = []
+while len(screws) > len(bores):
+    surplus.append(screws.pop())
+for o in surplus:
+    log.append("DEL   surplus screw %s" % o.Name)
+    doc.removeObject(o.Name)
+
+
+# --------------------------------------------- 4. seat each screw in its bore
+z = float(vs.WallHeight)                       # flange underside
+rot = FreeCAD.Rotation(FreeCAD.Vector(1, 0, 0), 180)
+
+for i, (o, (bx, by)) in enumerate(zip(screws, bores)):
+    o.Placement = FreeCAD.Placement(FreeCAD.Vector(bx, by, z), rot)
+    o.Label = "%s%03d" % (PREFIX, i + 1)
+    try:
+        o.Diameter = "M3"
+        o.Length = str(int(float(vs.ScrewLength)))
+    except Exception as exc:
+        FreeCAD.Console.PrintWarning(
+            "place_screws: could not set size on %s: %s\n" % (o.Name, exc))
+
+log.append("SEAT  %d screws at z=%.2f, head flush in the countersink" % (len(screws), z))
+
+
+# ------------------------------------------------ 5. put them in the Assembly
+if asm is not None:
+    inside = {c.Name for c in asm.Group}
+    moved = 0
+    for o in screws:
+        if o.Name not in inside:
+            asm.addObject(o)
+            moved += 1
+    log.append("MOVE  %d screws into Assembly.Group" % moved)
+else:
+    log.append("warn  no Assembly object found; screws left at document level")
+
+
+doc.recompute()
+
+print("\n".join(log))
+print("\nscrews: %d   bores: %d" % (len(screws), len(bores)))
+print("NOT saved - review, then save deliberately.")

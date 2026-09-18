@@ -1,0 +1,150 @@
+# -*- coding: utf-8 -*-
+"""
+remediate_parametric.FCMacro — Lockbox Bracket
+
+Closes the parametric gaps found in the 2026-09-17 intake audit. See plan.md.
+
+  1. Adds Params: OuterFilletRadius, ChamferSize, ScrewLength
+  2. Renames the dead knob HoleDiameter -> HoleMarkerDia (it sizes the Sketch003
+     marker circle, NOT the bore; the bore comes from Hole.ThreadSize + ThreadFit)
+  3. Binds Fillet.Radius and Chamfer.Size
+  4. Fixes the hole spacing: one concept, one formula, symmetric end margins
+  5. Mirrors the holes onto the second flange via a sketch symmetry constraint
+
+Idempotent — safe to re-run. Does NOT save the document.
+
+Run: Macro -> Macros... -> remediate_parametric -> Execute
+"""
+
+import FreeCAD
+import Part
+import Sketcher
+
+DOC_NAME = "Unnamed"          # internal name; the LABEL is "Lockbox Bracket"
+GROUP = "Base"
+
+doc = FreeCAD.getDocument(DOC_NAME)
+vs = doc.getObject("VarSet")
+sk3 = doc.getObject("Sketch003")
+hole = doc.getObject("Hole")
+lp = doc.getObject("LinearPattern")
+
+log = []
+
+
+# ---------------------------------------------------------------- 1. new Params
+NEW_PARAMS = [
+    ("OuterFilletRadius", "App::PropertyLength", 8.0,
+     "Radius of the two outer vertical corner fillets on the channel body. "
+     "Distinct from CornerRadius (7.0) - different concept, its own knob."),
+    ("ChamferSize", "App::PropertyLength", 0.4,
+     "Edge break on the flange edges; first-layer/handling chamfer."),
+    ("ScrewLength", "App::PropertyLength", 10.0,
+     "Length of the M3 countersunk mounting screws (M3x10). Used by "
+     "place_screws.FCMacro, not by the solid."),
+]
+
+for name, typ, value, tip in NEW_PARAMS:
+    if name in vs.PropertiesList:
+        log.append("skip  Param %s (exists)" % name)
+        continue
+    vs.addProperty(typ, name, GROUP, tip)
+    setattr(vs, name, value)
+    log.append("ADD   Param %s = %s" % (name, value))
+
+
+# ------------------------------------------- 2. rename HoleDiameter -> HoleMarkerDia
+if "HoleMarkerDia" not in vs.PropertiesList:
+    vs.addProperty(
+        "App::PropertyLength", "HoleMarkerDia", GROUP,
+        "Diameter of the Sketch003 marker circle. This does NOT set the bore - "
+        "PartDesign::Hole uses the sketch only for hole POSITIONS and cuts at its "
+        "own read-only Diameter, derived from ThreadSize=M3x0.5 + ThreadFit=Medium "
+        "(ISO 273 -> 3.4 mm). Do not 'correct' this to 3.4; it drives nothing but "
+        "the sketch marker.")
+    vs.HoleMarkerDia = 4.0
+    log.append("ADD   Param HoleMarkerDia = 4.0 (renamed from HoleDiameter)")
+else:
+    log.append("skip  Param HoleMarkerDia (exists)")
+
+# rebind the marker-circle diameter constraint BEFORE dropping the old property
+sk3.setExpression("Constraints[0]", "VarSet.HoleMarkerDia")
+log.append("BIND  Sketch003.Constraints[0] -> VarSet.HoleMarkerDia")
+
+if "HoleDiameter" in vs.PropertiesList:
+    vs.removeProperty("HoleDiameter")
+    log.append("DROP  Param HoleDiameter (dead knob, renamed)")
+
+
+# ------------------------------------------------------------ 3. feature bindings
+BINDINGS = [
+    ("Fillet", "Radius", "VarSet.OuterFilletRadius"),
+    ("Chamfer", "Size", "VarSet.ChamferSize"),
+]
+for obj_name, prop, expr in BINDINGS:
+    doc.getObject(obj_name).setExpression(prop, expr)
+    log.append("BIND  %s.%s -> %s" % (obj_name, prop, expr))
+
+# Hole.Diameter and the countersink dims are deliberately NOT bound: Diameter is
+# ReadOnly (ISO-derived from ThreadSize/ThreadFit) and the countersink follows the
+# ISO table while HoleCutCustomValues is False. Binding them would freeze the
+# fastener off-standard. Recorded as an audit exemption in CLAUDE.md.
+
+
+# ------------------------------------------------ 4. symmetric hole spacing
+# LinearPattern.Mode is "Spacing", so Offset is the live driver and Length is inert.
+if lp.Mode != "Spacing":
+    lp.Mode = "Spacing"
+    log.append("SET   LinearPattern.Mode = Spacing")
+
+# first bore sits half a pitch in from the near edge -> equal margins at both ends
+sk3.setExpression("Constraints[2]", "VarSet.Depth / (2 * VarSet.NumHoles)")
+log.append("BIND  Sketch003.Constraints[2] -> Depth / (2 * NumHoles)   [end margin]")
+
+lp.setExpression("Offset", "VarSet.Depth / VarSet.NumHoles")
+log.append("BIND  LinearPattern.Offset -> Depth / NumHoles             [pitch]")
+
+lp.setExpression("Occurrences", "VarSet.NumHoles")
+
+# drop the contradictory third formula (inert in Spacing mode, but misleading and
+# it divides by NumHoles-2, which blows up at NumHoles=2)
+if any(k == "Length" for k, _ in (lp.ExpressionEngine or [])):
+    lp.setExpression("Length", None)
+    log.append("CLEAR LinearPattern.Length expression (inert, divided by NumHoles-2)")
+
+
+# ---------------------------------------- 5. mirror the holes onto the other flange
+# A sketch-level symmetry constraint about the V axis, rather than a Mirrored
+# feature: the flanges are already symmetric about x=0, this stays parametric, and
+# PartDesign cannot chain a Mirrored onto a LinearPattern without a MultiTransform.
+if len(sk3.Geometry) < 2:
+    src = sk3.Geometry[0]
+    new_circle = Part.Circle(
+        FreeCAD.Vector(-src.Center.x, src.Center.y, 0),
+        FreeCAD.Vector(0, 0, 1),
+        src.Radius,
+    )
+    gid = sk3.addGeometry(new_circle, False)
+    # symmetric about the sketch V axis (GeoId -2); PointPos 3 == circle centre
+    sk3.addConstraint(Sketcher.Constraint("Symmetric", 0, 3, gid, 3, -2))
+    sk3.addConstraint(Sketcher.Constraint("Equal", 0, gid))
+    log.append("ADD   Sketch003 circle %d, Symmetric about V_Axis + Equal" % gid)
+else:
+    log.append("skip  Sketch003 mirrored circle (already present)")
+
+# widen the Hole profile from a single edge to the whole sketch so BOTH circles drill
+if list(hole.Profile[1]) != [""]:
+    hole.Profile = (sk3, [""])
+    log.append("SET   Hole.Profile -> whole Sketch003 (was %s)" % list(hole.Profile[1]))
+else:
+    log.append("skip  Hole.Profile (already whole sketch)")
+
+
+# ------------------------------------------------------------------- recompute
+doc.recompute()
+
+print("\n".join(log))
+print("\nfully constrained: Sketch003 = %s" % sk3.FullyConstrained)
+print("recompute errors : %s" % [o.Name for o in doc.Objects
+                                 if o.State and "Invalid" in o.State])
+print("\nNOT saved - review, then save deliberately.")

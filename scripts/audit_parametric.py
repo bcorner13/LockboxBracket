@@ -151,8 +151,10 @@ def audit_feature_dimensions(xml):
     Length2 is inert unless Type is TwoLengths. Inert dims are skipped — flagging them
     would demand a meaningless Param (see LENGTH_ACTIVE_TYPES)."""
     issues = []
-    for type_name in ["PartDesign::Pad", "PartDesign::Pocket", "PartDesign::Chamfer", "PartDesign::Fillet"]:
+    for type_name in ["PartDesign::Pad", "PartDesign::Pocket", "PartDesign::Chamfer",
+                      "PartDesign::Fillet", "PartDesign::Hole"]:
         is_pad_pocket = type_name in ("PartDesign::Pad", "PartDesign::Pocket")
+        is_hole = type_name == "PartDesign::Hole"
         for name in re.findall(rf'<Object type="{type_name}" name="(\w+)"', xml):
             body = get_object(xml, name)
             if body is None:
@@ -169,10 +171,27 @@ def audit_feature_dimensions(xml):
                 tm = re.search(r'<Property name="Type"[^>]*>\s*<Integer value="(\d+)"', body)
                 ptype = int(tm.group(1)) if tm else 0
 
-            for prop in ["Length", "Length2", "Radius", "Offset", "Size"]:
+            # PartDesign::Hole — Depth is live only when DepthType is Dimension (0);
+            # under ThroughAll (1) it is inert. Verified on FreeCAD 1.1.3 via
+            # getEnumerationsOfProperty("DepthType") -> ["Dimension", "ThroughAll"].
+            hole_depth_type = None
+            if is_hole:
+                hm = re.search(r'<Property name="DepthType"[^>]*>\s*<Integer value="(\d+)"', body)
+                hole_depth_type = int(hm.group(1)) if hm else 0
+
+            # Hole.Diameter is deliberately NOT checked: it is a ReadOnly property
+            # derived from ThreadSize + ThreadFit (ISO 273), not an author-set literal.
+            # Same for HoleCutDiameter / HoleCutCountersinkAngle while
+            # HoleCutCustomValues is False — they come from the ISO countersink table.
+            # Flagging them would demand Params that freeze the fastener off-standard.
+            for prop in ["Length", "Length2", "Radius", "Offset", "Size", "Depth"]:
                 if is_pad_pocket and prop == "Length" and ptype not in LENGTH_ACTIVE_TYPES:
                     continue
                 if is_pad_pocket and prop == "Length2" and ptype not in LENGTH2_ACTIVE_TYPES:
+                    continue
+                if prop == "Depth" and not is_hole:
+                    continue
+                if is_hole and prop == "Depth" and hole_depth_type != 0:
                     continue
                 p = re.search(rf'<Property name="{prop}"[^>]*>\s*<Float value="([-\d.]+)"', body)
                 if p and abs(float(p.group(1))) > 1e-9:

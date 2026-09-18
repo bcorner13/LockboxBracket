@@ -1,49 +1,55 @@
 # Intent — Lockbox Bracket
 
-> **STATUS: DRAFT — reverse-engineered from the existing model, needs Bradley's confirmation.**
-> `intent.md` is human input per `PROJECT_BOOTSTRAP.md`. The model existed before this file, so
-> the goal below was inferred by measuring `Lockbox Bracket.FCStd`, not stated by the user.
-> Correct anything wrong here before it gets treated as the spec. The lines marked
-> **[CONFIRM]** are the ones I could not derive from geometry.
+Stated by Bradley 2026-09-17. Supersedes the reverse-engineered draft.
 
 ## Goal
 
-A parametric mounting bracket that cradles a lockbox: an open-ended U-channel that the box
-sits down into, with an outward mounting flange along the top of each side wall, drilled for
-countersunk M3 fasteners.
+A bracket that holds a lockbox **under a desk**, fixed with **M3×0.5 screws (M3×10,
+ISO14582 countersunk)**.
 
-**[CONFIRM]** What the bracket actually mounts *to* (wall, vehicle panel, safe interior, shelf
-underside) and what lockbox model it is sized around. The 169.5 × 195 mm interior footprint
-looks like it was taken off a specific box.
+The box sits in an open-ended U-channel; a mounting flange runs along the top of each side
+wall. The flanges go up against the underside of the desk and the screws pass **up through
+the flanges into the desk** — heads countersunk flush on the flange underside, ~6 mm of
+thread into the desk through the 4 mm flange.
 
-## Form (measured from the current model)
+## Requirements
 
-- Open-ended **U-channel / trough**: 2 mm floor, two 2 mm side walls, **open at both ends**
-  along the depth axis, so the box slides in lengthwise.
-- **Outward flanges** at the top of each wall, 30 mm wide × 4 mm thick, running the full depth.
-- **6 countersunk M3 clearance holes per flange** (3.4 mm bore, 6.7 mm × 90° countersink),
-  evenly spaced along the depth.
-- Overall envelope **225.5 × 195 × 52 mm**. Interior cavity **165.5 × 195 × 46 mm**.
+1. **Hole placement must be symmetric** along the depth of the flange. The current model's
+   spacing math is wrong — three different divisors describe one concept, leaving uneven
+   end margins (32.5 mm vs 23.21 mm).
+2. **The number of holes is a parameter** (`NumHoles`), and everything downstream — spacing,
+   the mirrored flange, and the screws — follows from it.
+3. **Both flanges are drilled.** The holes currently exist on the +X flange only; they must
+   be mirrored onto the −X flange.
+4. **The screws seat in the holes** — heads in the countersinks, threads pointing up into
+   the desk. Two per hole position, i.e. `2 × NumHoles` screws.
+
+## Form (measured)
+
+- Open-ended **U-channel**: 2 mm floor, two 2 mm side walls, open at both ends along the
+  depth axis, so the box slides in lengthwise.
+- Interior cavity **165.5 × 195 × 46 mm**; overall envelope **225.5 × 195 × 52 mm**.
+- **Flanges** 30 mm wide × 4 mm thick, full depth, at the top of each wall.
+- **Countersunk M3 clearance holes**: 3.4 mm bore, 6.7 mm × 90° countersink opening downward.
 
 ## Constraints
 
 - Must follow `CAD_STANDARDS.md` and the parametric rules in `CLAUDE.md`.
 - All dimensions in mm; single watertight manifold solid.
-- Printable **without supports** — the U-channel prints open-side-up, flanges sit flat on the
-  bed at full width. Countersinks face upward, so they self-support.
-- Fits the **Creality K2 Plus** bed (350 × 350 mm). At 225.5 × 195 mm the part fits flat with
-  room to spare. **[CONFIRM]** whether ELEGOO Saturn 4 (resin) is also a target — it is not,
-  at this size.
-- **[CONFIRM] Material.** PLA for test fit, ASA for production is the house default; a load-
-  bearing bracket holding a metal lockbox argues for ASA or PETG in production.
-- **[CONFIRM] Load case.** Does the bracket carry the box's full weight in shear on the six
-  fasteners per side, or does the box rest on something else? This decides whether 2 mm walls
-  and a 2 mm floor are adequate or need thickening.
-- Target price point $36–$45 per `CAD_STANDARDS.md`. **[CONFIRM]** — at ~147 cm³ of solid
-  volume this is a large print; verify the price band still applies to a functional bracket
-  rather than a decorative piece.
+- Printable **without supports** — channel open-side-up, flanges flat on the bed.
+- Fits the Creality K2 Plus bed (350 × 350 mm) flat. Not a resin part; the Saturn 4 is not a
+  target at this size.
+- **[CONFIRM] Material.** PLA for test fit, ASA for production is the house default. Holding a
+  metal lockbox overhead argues for ASA or PETG in production — an under-desk bracket that
+  fails drops the box.
+- **[CONFIRM] Load case.** Whether the twelve M3 fasteners carry the box's full weight in
+  shear decides if 2 mm walls and a 2 mm floor are adequate.
+- **[CONFIRM] Lockbox model** the 165.5 × 195 mm interior is sized around.
+- Target price point $36–$45 per `CAD_STANDARDS.md`. **[CONFIRM]** whether that band applies
+  to a functional bracket at ~147 cm³.
 
 ## Non-goals
 
 - No lid, latch, or locking mechanism — this is the cradle only.
 - No print-in-place moving parts.
+- The desk itself is not modelled.
