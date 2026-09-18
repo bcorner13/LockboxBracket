@@ -12,20 +12,24 @@ without committing to the full 3.5 hour print.
      Does NOT test the interior width - measure the box against Width - 2 *
      WallThickness with calipers for that.
 
-  2. stl/Lockbox Bracket-testcoupon.stl
-     The full cross-section, one hole pitch deep, with a bore in each flange.
-     Tests everything the corner does PLUS whether the lockbox actually drops
-     between the walls. Bigger print, still ~25% of the full part.
+  2. stl/Lockbox Bracket-testcoupon.stl   <-- THE WIDTH TEST
+     The full cross-section, kept deliberately SHALLOW, with a bore in each
+     flange. Full width is mandatory - it is the only way to check the box
+     actually drops between the walls - but the depth is trimmed to the
+     minimum that still holds a hole and stays rigid enough not to flex and
+     give a false fit reading.
 
 HOW IT WORKS - and why it does NOT touch the parameters:
 
-    The obvious approach is NumHoles=1 + Depth=<one pitch>. DO NOT DO THAT.
-    Sketch003 dimensions the hole against external geometry taken from
-    Pad001.Face13, and that reference does not survive a change to Depth: at
-    Depth=32.5 the marker circles land at y=-32.5 while the part only spans
-    y=-16.25..16.25, so PartDesign::Hole cuts nothing. It fails SILENTLY -
-    sketch still FullyConstrained, all features Up-to-date, valid solid, no
-    error, just no holes. Verified 2026-09-17.
+    The obvious approach is NumHoles=1 + VarSet.Depth=<something small>.
+    DO NOT DO THAT. Sketch003.Constraints[2] is an UNSIGNED Distance, so
+    "N mm from that edge" has an inboard and an outboard solution and the
+    solver takes whichever is nearer the current geometry. A large jump in
+    VarSet.Depth flips the circles to the outboard branch, outside the
+    material, where PartDesign::Hole cuts nothing. It fails SILENTLY - sketch
+    still FullyConstrained, all features Up-to-date, valid solid, no error,
+    just missing holes. Path-dependent: 195->100 in one jump gives 6 bores,
+    the same destination in 20 mm steps gives 8. Verified 2026-09-17.
 
     So this macro slices the finished solid with a boolean common instead. The
     production model is never modified and nothing is recomputed.
@@ -49,7 +53,9 @@ DOC_NAME = "Unnamed"
 PROJECT = ("/Users/bradleycorner/Documents/3dPrinting/Commercial License/"
            "Lockbox Bracket")
 
-PITCHES = 1                 # depth of the full-section coupon, in hole pitches
+COUPON_DEPTH = 25.0         # depth of the full-WIDTH coupon, mm. Full width is
+                            # non-negotiable; this is trimmed to keep it cheap.
+                            # Do not go much below ~20 mm or the walls flex.
 CORNER_DEPTH = 30.0         # depth of the small corner test, mm
 CORNER_INBOARD = 22.0       # how much floor to keep inboard of the wall, mm
 BORE_RADIUS = 1.7
@@ -73,7 +79,6 @@ bores = sorted({(round(f.Surface.Center.x, 4), round(f.Surface.Center.y, 4))
 if not bores:
     raise RuntimeError("No M3 bores found - nothing to centre a test piece on.")
 
-pitch = float(vs.Depth) / int(vs.NumHoles)
 mid_y = 0.5 * (bb.YMin + bb.YMax)
 PAD = 10.0
 
@@ -138,13 +143,12 @@ slice_out(
 
 # ---------------------------------------------- 2. full-section coupon
 coupon_y = min((b[1] for b in bores), key=lambda y: abs(y - mid_y))
-depth = pitch * PITCHES
 slice_out(
     x0=bb.XMin - PAD,
     x1=bb.XMax + PAD,
-    y0=coupon_y - depth / 2.0,
-    y1=coupon_y + depth / 2.0,
-    label="FULL-SECTION COUPON  (adds the box-width fit check)",
+    y0=coupon_y - COUPON_DEPTH / 2.0,
+    y1=coupon_y + COUPON_DEPTH / 2.0,
+    label="WIDTH TEST  (full cross-section - does the box fit between the walls?)",
     filename="Lockbox Bracket-testcoupon.stl",
     want_bores=2,
 )

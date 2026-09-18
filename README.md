@@ -34,10 +34,16 @@ see the red warning in `CLAUDE.md`.**
 | File | Size | Tests |
 |---|---|---|
 | `stl/Lockbox Bracket-cornertest.stl` | 52 × 30 × 52 mm, **5.2%** of the part | M3 screw fit in a horizontal bore, wall + flange thickness, corner fillet |
-| `stl/Lockbox Bracket-testcoupon.stl` | 225.5 × 48.75 × 52 mm, 25% | the above **plus** whether the lockbox drops between the walls |
+| `stl/Lockbox Bracket-testcoupon.stl` | 225.5 × 25 × 52 mm, **12.8%** | the above **plus the interior width** — does the box drop between the walls |
 | `stl/Lockbox Bracket.stl` | full part | — |
 
-![Corner test coupon](images/corner-test-coupon.png)
+The width test is kept shallow on purpose: full width is the only way to check the box fit,
+but the depth is trimmed to the minimum that still holds a bore and stays stiff enough not to
+flex and give a false reading. Interior width is **165.50 mm**.
+
+| Corner test (5.2%) | Width test (12.8%) |
+|---|---|
+| ![Corner test coupon](images/corner-test-coupon.png) | ![Width test coupon](images/width-test-coupon.png) |
 
 Print the test pieces **in the same orientation as production** (depth axis vertical) so the
 bores print horizontally exactly as they will in the real part — that is what makes the

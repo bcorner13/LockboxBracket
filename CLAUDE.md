@@ -96,7 +96,7 @@ reason about — but the *physical* relationship still matters and cannot be rea
 | `macros/export_test_coupon.FCMacro` | Cuts two test pieces from the solid | the FCStd | ✅ idempotent; **does not modify the model** |
 | `stl/Lockbox Bracket.stl` | Printable mesh, full part | the FCStd | ✅ watertight, manifold, no self-intersections |
 | `stl/Lockbox Bracket-cornertest.stl` | **Quick fit test** — 52 × 30 × 52 mm, one wall + flange + 1 bore, 5.2% of the part | the FCStd | ✅ watertight |
-| `stl/Lockbox Bracket-testcoupon.stl` | Full cross-section, one pitch deep, 2 bores, 25% of the part | the FCStd | ✅ watertight |
+| `stl/Lockbox Bracket-testcoupon.stl` | **Width test** — 225.5 × 25 × 52 mm, full cross-section, 2 bores, 12.8% of the part | the FCStd | ✅ watertight |
 | `3mf/Lockbox Bracket.3mf` | Creality Print slicer project — PETG, 4 walls | the FCStd | ⚠️ **geometry STALE** (12-hole version). Settings are current; re-import the STL and re-slice. |
 
 **There is no `Params.FCStd`, and that is deliberate.**
