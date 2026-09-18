@@ -12,8 +12,8 @@ drilled for countersunk M3×10 fasteners that run up into the desk.
 | **Interior cavity** | 165.5 × 195 × 46 mm |
 | **Wall / floor** | 2.0 mm |
 | **Flanges** | 30 mm wide × 4 mm thick, full depth, both sides |
-| **Fasteners** | `NumHoles` × M3×10 countersunk per flange, both flanges (3.4 mm bore, 6.7 mm × 90° c'sink) — 12 at the default `NumHoles = 6` |
-| **Volume** | 146 686.19 mm³ |
+| **Fasteners** | `NumHoles` × M3×10 countersunk per flange, both flanges (3.4 mm bore, 6.7 mm × 90° c'sink) — **8 total at `NumHoles = 4`** |
+| **Volume** | 146 908.44 mm³ |
 | **CAD** | FreeCAD 1.1.3, PartDesign, single body + Assembly |
 
 ## Status
@@ -24,10 +24,26 @@ sketches fully constrained and attached to origin planes, every live dimension b
 
 Remediated 2026-09-17: symmetric hole spacing driven by one formula, holes mirrored onto both
 flanges via a sketch symmetry constraint, and `2 × NumHoles` screws seated in the bores.
-Flexing `NumHoles` 6 → 8 → 6 returns the volume to 146 686.19 mm³ exactly.
+Flexing `NumHoles` returns the volume to its baseline exactly. **`Depth` is a different
+story — changing it silently deletes every hole; see the red warning in `CLAUDE.md`.**
 
-**No successful test print yet.** `stl/` and `3mf/` hold current exports of the bracket alone —
-watertight, manifold, 146 683.72 mm³. The 3MF is geometry only; it carries no slicer settings.
+**No successful test print yet.** Start with the test pieces rather than the 3½ hour part:
+
+| File | Size | Tests |
+|---|---|---|
+| `stl/Lockbox Bracket-cornertest.stl` | 52 × 30 × 52 mm, **5.2%** of the part | M3 screw fit in a horizontal bore, wall + flange thickness, corner fillet |
+| `stl/Lockbox Bracket-testcoupon.stl` | 225.5 × 48.75 × 52 mm, 25% | the above **plus** whether the lockbox drops between the walls |
+| `stl/Lockbox Bracket.stl` | full part | — |
+
+![Corner test coupon](images/corner-test-coupon.png)
+
+Print the test pieces **in the same orientation as production** (depth axis vertical) so the
+bores print horizontally exactly as they will in the real part — that is what makes the
+screw-fit test meaningful.
+
+`3mf/Lockbox Bracket.3mf` is a Creality Print project carrying the current settings (PETG,
+4 walls), but its **geometry is stale** — it predates the drop to 8 holes. Re-import the STL
+into that project and re-slice.
 
 ## Layout
 

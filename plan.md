@@ -15,6 +15,14 @@ Remediation of an existing model — not an initial build.
 | Solid | valid, 1 solid, 146 686.19 mm³, 225.5 × 195 × 52 mm |
 | Flex test | `NumHoles` 6→8 gives 16 symmetric bores; 8→6 restores 146 686.19 mm³ **exactly** |
 
+> **Later changes — this table records the state at remediation, not today.**
+> - 2026-09-17: `NumHoles` 6 → **4** (8 bores total; 6/flange judged overkill). Current volume
+>   146 908.44 mm³, pitch 48.75 mm, end margins 24.375 mm, 8 screws.
+> - 2026-09-17: **`Depth` found NOT safely parametric** — the flex test above covered
+>   `NumHoles` and `OuterFilletRadius` but never `Depth`. Changing `Depth` silently deletes
+>   every hole (`Sketch003`'s dimension to `Pad001.Face13` does not track it). See `CLAUDE.md`.
+>   Unfixed; the fix is a `DistanceY` from the sketch origin instead of external geometry.
+
 ---
 
 ## Intake audit — what was measured

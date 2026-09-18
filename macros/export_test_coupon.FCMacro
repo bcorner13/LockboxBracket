@@ -1,0 +1,155 @@
+# -*- coding: utf-8 -*-
+"""
+export_test_coupon.FCMacro — Lockbox Bracket
+
+Exports two test pieces cut from the finished solid, so you can check fit
+without committing to the full 3.5 hour print.
+
+  1. stl/Lockbox Bracket-cornertest.stl   <-- THE QUICK ONE
+     One corner: a slice of floor, one 2 mm side wall, its 4 mm flange, and a
+     single countersunk M3 bore. A few minutes to print. Tests the fastener
+     fit, wall thickness, flange thickness and the inner corner fillet.
+     Does NOT test the interior width - measure the box against Width - 2 *
+     WallThickness with calipers for that.
+
+  2. stl/Lockbox Bracket-testcoupon.stl
+     The full cross-section, one hole pitch deep, with a bore in each flange.
+     Tests everything the corner does PLUS whether the lockbox actually drops
+     between the walls. Bigger print, still ~25% of the full part.
+
+HOW IT WORKS - and why it does NOT touch the parameters:
+
+    The obvious approach is NumHoles=1 + Depth=<one pitch>. DO NOT DO THAT.
+    Sketch003 dimensions the hole against external geometry taken from
+    Pad001.Face13, and that reference does not survive a change to Depth: at
+    Depth=32.5 the marker circles land at y=-32.5 while the part only spans
+    y=-16.25..16.25, so PartDesign::Hole cuts nothing. It fails SILENTLY -
+    sketch still FullyConstrained, all features Up-to-date, valid solid, no
+    error, just no holes. Verified 2026-09-17.
+
+    So this macro slices the finished solid with a boolean common instead. The
+    production model is never modified and nothing is recomputed.
+
+Print BOTH in the same orientation as the production part - the depth axis
+vertical - so the bores print horizontally exactly as they will in the real
+part. That is the whole point of the screw-fit test.
+
+Idempotent. Does NOT save the document. Does NOT modify the model.
+
+Run: Macro -> Macros... -> export_test_coupon -> Execute
+"""
+
+import os
+import FreeCAD
+import Part
+import Mesh
+import MeshPart
+
+DOC_NAME = "Unnamed"
+PROJECT = ("/Users/bradleycorner/Documents/3dPrinting/Commercial License/"
+           "Lockbox Bracket")
+
+PITCHES = 1                 # depth of the full-section coupon, in hole pitches
+CORNER_DEPTH = 30.0         # depth of the small corner test, mm
+CORNER_INBOARD = 22.0       # how much floor to keep inboard of the wall, mm
+BORE_RADIUS = 1.7
+TOL = 0.05
+LINEAR_DEFLECTION = 0.05
+ANGULAR_DEFLECTION = 0.1745329252
+
+doc = FreeCAD.getDocument(DOC_NAME)
+vs = doc.getObject("VarSet")
+body = doc.getObject("Body")
+
+shape = body.Tip.Shape
+if shape is None or shape.isNull() or not shape.isValid():
+    raise RuntimeError("Body.Tip shape missing or invalid - recompute first.")
+
+bb = shape.BoundBox
+bores = sorted({(round(f.Surface.Center.x, 4), round(f.Surface.Center.y, 4))
+                for f in shape.Faces
+                if f.Surface.__class__.__name__ == "Cylinder"
+                and abs(f.Surface.Radius - BORE_RADIUS) < TOL})
+if not bores:
+    raise RuntimeError("No M3 bores found - nothing to centre a test piece on.")
+
+pitch = float(vs.Depth) / int(vs.NumHoles)
+mid_y = 0.5 * (bb.YMin + bb.YMax)
+PAD = 10.0
+
+
+def slice_out(x0, x1, y0, y1, label, filename, want_bores):
+    """Boolean-common the solid with a box and export the result as STL."""
+    cutter = Part.makeBox(
+        x1 - x0, y1 - y0, bb.ZLength + 2 * PAD,
+        FreeCAD.Vector(x0, y0, bb.ZMin - PAD),
+    )
+    piece = shape.common(cutter)
+    if not piece.isValid():
+        raise RuntimeError("%s: shape invalid" % label)
+    if len(piece.Solids) != 1:
+        raise RuntimeError("%s: produced %d solids, expected 1"
+                           % (label, len(piece.Solids)))
+    got = len([f for f in piece.Faces
+               if f.Surface.__class__.__name__ == "Cylinder"
+               and abs(f.Surface.Radius - BORE_RADIUS) < TOL])
+    if got != want_bores:
+        raise RuntimeError("%s: %d bores, expected %d" % (label, got, want_bores))
+
+    mesh = MeshPart.meshFromShape(Shape=piece,
+                                  LinearDeflection=LINEAR_DEFLECTION,
+                                  AngularDeflection=ANGULAR_DEFLECTION,
+                                  Relative=False)
+    tmp = doc.addObject("Mesh::Feature", "TempTestMesh")
+    tmp.Mesh = mesh
+    try:
+        out = os.path.join(PROJECT, "stl", filename)
+        Mesh.export([tmp], out)
+    finally:
+        doc.removeObject(tmp.Name)
+
+    pbb = piece.BoundBox
+    print("%s" % label)
+    print("   bbox      : %.2f x %.2f x %.2f mm"
+          % (pbb.XLength, pbb.YLength, pbb.ZLength))
+    print("   bores     : %d" % got)
+    print("   volume    : %.0f mm3  (%.1f%% of the full part)"
+          % (piece.Volume, 100.0 * piece.Volume / shape.Volume))
+    print("   watertight: %s" % mesh.isSolid())
+    print("   %d bytes  %s" % (os.path.getsize(out), filename))
+    print("   print with the %.1f mm axis VERTICAL\n" % pbb.YLength)
+
+
+# ---------------------------------------------- 1. small corner test
+# take the +X flange, its wall, and a little floor, around one bore
+bore_x = max(b[0] for b in bores)
+corner_y = min((b[1] for b in bores if b[0] == bore_x), key=lambda y: abs(y - mid_y))
+wall_inner_x = 0.5 * float(vs.Width) - float(vs.WallThickness)
+
+slice_out(
+    x0=wall_inner_x - CORNER_INBOARD,
+    x1=bb.XMax + PAD,
+    y0=corner_y - CORNER_DEPTH / 2.0,
+    y1=corner_y + CORNER_DEPTH / 2.0,
+    label="CORNER TEST  (quick - fastener + wall/flange section)",
+    filename="Lockbox Bracket-cornertest.stl",
+    want_bores=1,
+)
+
+# ---------------------------------------------- 2. full-section coupon
+coupon_y = min((b[1] for b in bores), key=lambda y: abs(y - mid_y))
+depth = pitch * PITCHES
+slice_out(
+    x0=bb.XMin - PAD,
+    x1=bb.XMax + PAD,
+    y0=coupon_y - depth / 2.0,
+    y1=coupon_y + depth / 2.0,
+    label="FULL-SECTION COUPON  (adds the box-width fit check)",
+    filename="Lockbox Bracket-testcoupon.stl",
+    want_bores=2,
+)
+
+print("production model untouched - Depth=%s NumHoles=%s, %d bores"
+      % (vs.Depth, vs.NumHoles, len(bores)))
+print("interior width for caliper check: %.2f mm"
+      % (float(vs.Width) - 2 * float(vs.WallThickness)))

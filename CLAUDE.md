@@ -67,8 +67,9 @@ reason about — but the *physical* relationship still matters and cannot be rea
   the only fixing interface — the bracket hangs or bolts by these two strips.
 - **The bracket mounts under a desk.** The flanges go up against the desk underside and the
   screws pass **up through the flange into the desk**.
-- **`NumHoles` countersunk M3 clearance holes per flange**, `2 × NumHoles` total (12 at
-  `NumHoles = 6`): 3.4 mm bore, 6.7 mm × 90° countersink, depth bound to `FlangThickness`.
+- **`NumHoles` countersunk M3 clearance holes per flange**, `2 × NumHoles` total (**8 at the
+  current `NumHoles = 4`** — reduced from 6/flange on 2026-09-17 as overkill; pitch 48.75 mm,
+  end margins 24.375 mm): 3.4 mm bore, 6.7 mm × 90° countersink, depth bound to `FlangThickness`.
   Countersinks open **downward** (Ø6.6 at z=48, closing to Ø3.4 by z≈49.7) so the heads seat
   flush on the flange *underside* — verified by measurement, not assumed.
 - Both flanges are drilled from **one sketch**: `Sketch003` holds two circles held `Symmetric`
@@ -91,9 +92,12 @@ reason about — but the *physical* relationship still matters and cannot be rea
 | `Lockbox Bracket.FCStd` | The entire part: `Body` + in-document `VarSet` + `Assembly` with the screws | — (self-contained) | ✅ audit clean; parametric flex verified |
 | `macros/remediate_parametric.FCMacro` | Params, bindings, symmetric spacing, mirrored holes | the FCStd | ✅ idempotent |
 | `macros/place_screws.FCMacro` | Seats `2 × NumHoles` screws in the bores | the FCStd | ✅ idempotent; **re-run after changing `NumHoles`** |
-| `macros/export_print_files.FCMacro` | Exports the Body alone to `stl/` + `3mf/` | the FCStd | ✅ idempotent |
-| `stl/Lockbox Bracket.stl` | Printable mesh | the FCStd | ✅ watertight, manifold, no self-intersections |
-| `3mf/Lockbox Bracket.3mf` | Printable geometry | the FCStd | ✅ geometry only — **no slicer settings baked in** |
+| `macros/export_print_files.FCMacro` | Exports the Body alone to `stl/` | the FCStd | ✅ idempotent |
+| `macros/export_test_coupon.FCMacro` | Cuts two test pieces from the solid | the FCStd | ✅ idempotent; **does not modify the model** |
+| `stl/Lockbox Bracket.stl` | Printable mesh, full part | the FCStd | ✅ watertight, manifold, no self-intersections |
+| `stl/Lockbox Bracket-cornertest.stl` | **Quick fit test** — 52 × 30 × 52 mm, one wall + flange + 1 bore, 5.2% of the part | the FCStd | ✅ watertight |
+| `stl/Lockbox Bracket-testcoupon.stl` | Full cross-section, one pitch deep, 2 bores, 25% of the part | the FCStd | ✅ watertight |
+| `3mf/Lockbox Bracket.3mf` | Creality Print slicer project — PETG, 4 walls | the FCStd | ⚠️ **geometry STALE** (12-hole version). Settings are current; re-import the STL and re-slice. |
 
 **There is no `Params.FCStd`, and that is deliberate.**
 
@@ -105,6 +109,23 @@ reason about — but the *physical* relationship still matters and cannot be rea
 > its keep when more than one document shares the variables.
 
 ### Known debt and traps
+
+- 🔴 **`Depth` IS NOT SAFELY PARAMETRIC — changing it silently deletes every hole.**
+  Measured 2026-09-17: at `Depth = 32.5` the `Sketch003` marker circles land at **y = −32.5**
+  while the part spans **y ∈ [−16.25, +16.25]**, so the circles sit outside the material and
+  `PartDesign::Hole` cuts nothing. There is **no error of any kind** — the sketch reports
+  `FullyConstrained`, every feature reads `Up-to-date`, the solid is valid and single. You get
+  a bracket with no mounting holes and nothing tells you.
+
+  Cause: `Sketch003.Constraints[2]` dimensions the hole against **external geometry from
+  `Pad001.Face13`**, and that reference does not track a change in `Depth`.
+
+  - `NumHoles` **is** safe (verified at 1, 6 and 8 — it does not move the external edges).
+  - `Depth` is **not**. If you change it, immediately re-measure the bore count; do not trust
+    a clean recompute or a clean audit.
+  - **Proper fix, not yet done:** replace that external-geometry dimension with a `DistanceY`
+    from the sketch origin, e.g. `-Depth/2 + Depth/(2*NumHoles)`. That removes the feature-face
+    dependency and makes `Depth` safe. Worth doing before the box-fit iteration changes `Depth`.
 
 - **`HoleMarkerDia` (4.0 mm) does not set the bore.** It sizes the `Sketch003` marker circles,
   which `PartDesign::Hole` uses only for *positions*; the bore comes from `ThreadSize` +
@@ -146,8 +167,8 @@ In-document `VarSet`, 13 variables, all `App::PropertyLength` except `NumHoles`
 - **Flange:** `FlangWidth` (30.0), `FlangThickness` (4.0), `FlangRadius` (2.0)
   *(note the spelling — `Flang`, not `Flange`; it is consistent across all bindings, so leave it)*
 - **Dress-up:** `OuterFilletRadius` (8.0 → `Fillet.Radius`), `ChamferSize` (0.4 → `Chamfer.Size`)
-- **Fastener:** `NumHoles` (6), `ScrewLength` (10.0, used by `place_screws.FCMacro`),
-  `HoleMarkerDia` (4.0 — sketch marker only, **not** the bore)
+- **Fastener:** `NumHoles` (**4** per flange, 8 total), `ScrewLength` (10.0, used by
+  `place_screws.FCMacro`), `HoleMarkerDia` (4.0 — sketch marker only, **not** the bore)
 
 Hole spacing derives entirely from `Depth` and `NumHoles`:
 `Sketch003.Constraints[2] = Depth / (2 × NumHoles)` (end margin) and
