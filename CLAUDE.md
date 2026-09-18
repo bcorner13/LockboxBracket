@@ -91,7 +91,9 @@ reason about — but the *physical* relationship still matters and cannot be rea
 | `Lockbox Bracket.FCStd` | The entire part: `Body` + in-document `VarSet` + `Assembly` with the screws | — (self-contained) | ✅ audit clean; parametric flex verified |
 | `macros/remediate_parametric.FCMacro` | Params, bindings, symmetric spacing, mirrored holes | the FCStd | ✅ idempotent |
 | `macros/place_screws.FCMacro` | Seats `2 × NumHoles` screws in the bores | the FCStd | ✅ idempotent; **re-run after changing `NumHoles`** |
-| `3mf/Lockbox Bracket.3mf` | Sliced print file (2026-09-17) | the FCStd | ⚠️ **STALE** — sliced from the pre-remediation model (6 holes, one flange, asymmetric). Re-slice before printing. |
+| `macros/export_print_files.FCMacro` | Exports the Body alone to `stl/` + `3mf/` | the FCStd | ✅ idempotent |
+| `stl/Lockbox Bracket.stl` | Printable mesh | the FCStd | ✅ watertight, manifold, no self-intersections |
+| `3mf/Lockbox Bracket.3mf` | Printable geometry | the FCStd | ✅ geometry only — **no slicer settings baked in** |
 
 **There is no `Params.FCStd`, and that is deliberate.**
 
@@ -120,6 +122,17 @@ reason about — but the *physical* relationship still matters and cannot be rea
   `FreeCAD.getDocument("Unnamed")` — `getDocument("Lockbox Bracket")` fails.
 - The Fasteners workbench **re-labels its screws on recompute**, so labels set by
   `place_screws.FCMacro` do not stick. Cosmetic; identify screws by `Placement`, not `Label`.
+- **EXPORT TRAP — the screws will end up in your print file.** The community macro
+  `3D_Printer_3mf_Workflow.FCMacro` exports `FreeCADGui.Selection` (its own line 2402), not the
+  printable body. Running it with the `Assembly` or the whole document selected meshes all
+  twelve M3×10 screws into the 3MF. That happened on 2026-09-17 and produced a ~20 MB file
+  that no slicer can use.
+
+  **Always export via `macros/export_print_files.FCMacro`**, which pins the selection to
+  `Body` and writes `stl/` + `3mf/` itself. It leaves `Body` selected afterwards, so if you
+  then want the workflow macro's slicer-settings round-trip, run it immediately after and it
+  will pick up the bracket alone. A correct export is ~75 KB and spans z = 0..52; if `ZMax`
+  reads 58, the screws are in it.
 
 ---
 

@@ -26,8 +26,8 @@ Remediated 2026-09-17: symmetric hole spacing driven by one formula, holes mirro
 flanges via a sketch symmetry constraint, and `2 × NumHoles` screws seated in the bores.
 Flexing `NumHoles` 6 → 8 → 6 returns the volume to 146 686.19 mm³ exactly.
 
-**No successful test print yet**, and `3mf/Lockbox Bracket.3mf` is stale — it was sliced from
-the pre-remediation model. Re-slice before printing.
+**No successful test print yet.** `stl/` and `3mf/` hold current exports of the bracket alone —
+watertight, manifold, 146 683.72 mm³. The 3MF is geometry only; it carries no slicer settings.
 
 ## Layout
 
@@ -43,6 +43,17 @@ images/                   renders and screenshots
 macros/                   project .FCMacro files
 scripts/audit_parametric.py   parametric compliance audit
 ```
+
+## Exporting print files
+
+Run `macros/export_print_files.FCMacro`. It writes `stl/Lockbox Bracket.stl` and
+`3mf/Lockbox Bracket.3mf` from the bracket **Body only**.
+
+> **Do not export with the Assembly selected.** The community
+> `3D_Printer_3mf_Workflow.FCMacro` exports the current selection, so it will mesh the twelve
+> M3×10 screws into the print file. `export_print_files` pins the selection to `Body` and
+> leaves it selected, so you can run the workflow macro straight afterwards for its
+> slicer-settings round-trip.
 
 ## Changing the hole count
 
