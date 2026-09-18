@@ -1,6 +1,6 @@
 # Intent — Lockbox Bracket
 
-Stated by Bradley 2026-09-17. Supersedes the reverse-engineered draft.
+Stated by Bradley 2026-09-17/18. Test-print validated 2026-09-18.
 
 ## Goal
 
@@ -12,44 +12,60 @@ wall. The flanges go up against the underside of the desk and the screws pass **
 the flanges into the desk** — heads countersunk flush on the flange underside, ~6 mm of
 thread into the desk through the 4 mm flange.
 
+## How the box is retained — the key design decision
+
+**The bracket is deliberately SHORTER than the box.** The box slides in from one open end,
+and the **combination dial / lock knob on the box's front face bottoms out against the end of
+the channel**, stopping it before it can slide all the way through. There is no catch, lip, or
+stop feature in the model — the knob *is* the stop.
+
+This is why `VarSet.Depth` is **185 mm** rather than matching the box's length. That number
+came off the physical box (2026-09-18) and is not arbitrary:
+
+> **Do not "tidy" `Depth` to match the box length, and do not add a back wall.** Either would
+> defeat the retention mechanism. If the bracket were as long as the box, the knob would clear
+> the end and the box would slide straight through.
+
+The far end stays open so the box can be pushed back out.
+
 ## Requirements
 
-1. **Hole placement must be symmetric** along the depth of the flange. The current model's
-   spacing math is wrong — three different divisors describe one concept, leaving uneven
-   end margins (32.5 mm vs 23.21 mm).
-2. **The number of holes is a parameter** (`NumHoles`), and everything downstream — spacing,
-   the mirrored flange, and the screws — follows from it.
-3. **Both flanges are drilled.** The holes currently exist on the +X flange only; they must
-   be mirrored onto the −X flange.
-4. **The screws seat in the holes** — heads in the countersinks, threads pointing up into
-   the desk. Two per hole position, i.e. `2 × NumHoles` screws.
+1. **Hole placement symmetric** along the flange. ✅ done — one formula, equal end margins.
+2. **`NumHoles` is a parameter**; spacing, both flanges and the screws all follow from it.
+   ✅ done. Currently 4 per flange, **8 total** (12 was judged overkill).
+3. **Both flanges drilled.** ✅ done via a sketch symmetry constraint.
+4. **Screws seat in the holes**, heads in the countersinks, threads up into the desk. ✅ done.
 
 ## Form (measured)
 
-- Open-ended **U-channel**: 2 mm floor, two 2 mm side walls, open at both ends along the
-  depth axis, so the box slides in lengthwise.
-- Interior cavity **165.5 × 195 × 46 mm**; overall envelope **225.5 × 195 × 52 mm**.
-- **Flanges** 30 mm wide × 4 mm thick, full depth, at the top of each wall.
-- **Countersunk M3 clearance holes**: 3.4 mm bore, 6.7 mm × 90° countersink opening downward.
+- Open-ended **U-channel**: 2 mm floor, two 2 mm side walls, open at both ends.
+- Interior cavity **165.5 × 185 × 46 mm**; overall envelope **225.5 × 185 × 52 mm**.
+- **Flanges** 30 mm wide × 4 mm thick, full length, at the top of each wall.
+- **Countersunk M3 clearance holes**: 3.4 mm bore, 6.7 mm × 90° countersink, opening downward.
+
+## Validated by test print (2026-09-18)
+
+A full-width coupon (225.5 × 32.4 × 52 mm, 16.6% of the part, 48m49s, 29.4 g PETG) was printed
+in the production orientation and checked against the real box:
+
+- **Fit is snug without being over-tight** — the interior width of 165.5 mm is correct.
+- **The corner radius fits well** — estimated value confirmed, no change needed.
+- **2 mm walls and floor are adequate.** Bradley's call: *"plenty strong as is."* The earlier
+  open question about thickening for the load case is **closed** — no change.
 
 ## Constraints
 
 - Must follow `CAD_STANDARDS.md` and the parametric rules in `CLAUDE.md`.
 - All dimensions in mm; single watertight manifold solid.
-- Printable **without supports** — channel open-side-up, flanges flat on the bed.
-- Fits the Creality K2 Plus bed (350 × 350 mm) flat. Not a resin part; the Saturn 4 is not a
-  target at this size.
-- **[CONFIRM] Material.** PLA for test fit, ASA for production is the house default. Holding a
-  metal lockbox overhead argues for ASA or PETG in production — an under-desk bracket that
-  fails drops the box.
-- **[CONFIRM] Load case.** Whether the twelve M3 fasteners carry the box's full weight in
-  shear decides if 2 mm walls and a 2 mm floor are adequate.
-- **[CONFIRM] Lockbox model** the 165.5 × 195 mm interior is sized around.
-- Target price point $36–$45 per `CAD_STANDARDS.md`. **[CONFIRM]** whether that band applies
-  to a functional bracket at ~147 cm³.
+- Printable **without supports** — printed on end, depth axis vertical.
+- Fits the Creality K2 Plus bed (350 × 350 mm).
+- **Material: PETG** (CR-PETG, CFS slot 4), 4 perimeters. Chosen over PLA/PLA-CF because the
+  bracket carries a load continuously and PLA creeps under sustained stress.
+- Target price point $36–$45 per `CAD_STANDARDS.md`. Material cost is a few dollars; the full
+  part is ~139 cm³.
 
 ## Non-goals
 
-- No lid, latch, or locking mechanism — this is the cradle only.
+- **No lid, latch, catch or back stop** — the box's own lock knob is the stop (see above).
 - No print-in-place moving parts.
 - The desk itself is not modelled.

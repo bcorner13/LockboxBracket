@@ -8,12 +8,12 @@ drilled for countersunk M3×10 fasteners that run up into the desk.
 
 | | |
 |---|---|
-| **Envelope** | 225.5 × 195 × 52 mm |
-| **Interior cavity** | 165.5 × 195 × 46 mm |
+| **Envelope** | 225.5 × 185 × 52 mm |
+| **Interior cavity** | 165.5 × 185 × 46 mm |
 | **Wall / floor** | 2.0 mm |
 | **Flanges** | 30 mm wide × 4 mm thick, full depth, both sides |
 | **Fasteners** | `NumHoles` × M3×10 countersunk per flange, both flanges (3.4 mm bore, 6.7 mm × 90° c'sink) — **8 total at `NumHoles = 4`** |
-| **Volume** | 146 908.44 mm³ |
+| **Volume** | 139 346.02 mm³ |
 | **CAD** | FreeCAD 1.1.3, PartDesign, single body + Assembly |
 
 ## Status
@@ -29,12 +29,19 @@ Flexing `NumHoles` returns the volume to its baseline exactly. **`VarSet.Depth` 
 uses an unsigned distance constraint. Change it in small steps and re-check the bore count;
 see the red warning in `CLAUDE.md`.**
 
-**No successful test print yet.** Start with the test pieces rather than the 3½ hour part:
+**Width test printed 2026-09-18 — fit confirmed snug, corner radius good, 2 mm walls judged
+adequate.** `Depth` then set to 185 mm from the physical box. Full part not yet printed.
+
+> **Retention:** the bracket is deliberately shorter than the box. The box's combination dial
+> bottoms against the end of the channel and stops it sliding through — there is no catch.
+> Do not lengthen `Depth` to match the box or add a back wall. See [`intent.md`](intent.md).
+
+Test pieces, cheaper than the full part:
 
 | File | Size | Tests |
 |---|---|---|
-| `stl/Lockbox Bracket-cornertest.stl` | 52 × 32.38 × 52 mm, **5.6%** of the part | M3 screw fit in a horizontal bore, wall + flange thickness, corner fillet |
-| `stl/Lockbox Bracket-testcoupon.stl` | 225.5 × 32.38 × 52 mm, **16.6%** | the above **plus the interior width** — does the box drop between the walls |
+| `stl/Lockbox Bracket-cornertest.stl` | 52 × 31.13 × 52 mm, **5.7%** of the part | M3 screw fit in a horizontal bore, wall + flange thickness, corner fillet |
+| `stl/Lockbox Bracket-testcoupon.stl` | 225.5 × 31.13 × 52 mm, **16.8%** | the above **plus the interior width** — does the box drop between the walls |
 | `stl/Lockbox Bracket.stl` | full part | — |
 
 Both are cut from the part's **real open end** up to 8 mm past the first hole, so they carry

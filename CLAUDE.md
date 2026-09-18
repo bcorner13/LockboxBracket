@@ -61,15 +61,22 @@ reason about — but the *physical* relationship still matters and cannot be rea
   2 mm side walls, **open at both ends** along the depth (Y) axis. Verified by point-inside
   probing, not assumed: material exists at the centreline only from z≈0 to z≈2.
 - **The lockbox slides in lengthwise** through either open end and rests on the floor. Interior
-  cavity is **165.5 (X) × 195 (Y) × 46 (Z) mm**.
+  cavity is **165.5 (X) × 185 (Y) × 46 (Z) mm**.
 - **Mounting flanges** run the full depth along the top outer edge of each side wall, 30 mm wide
   × 4 mm thick, generated as `Pad001` and `Mirrored` about `Sketch002`'s V_Axis. The flanges are
   the only fixing interface — the bracket hangs or bolts by these two strips.
 - **The bracket mounts under a desk.** The flanges go up against the desk underside and the
   screws pass **up through the flange into the desk**.
+- 🔑 **RETENTION: the bracket is deliberately SHORTER than the box.** The box slides in and
+  the **combination dial / lock knob on its front face bottoms against the end of the
+  channel**, which is what stops it sliding through. There is no catch or stop feature — the
+  knob *is* the stop. This is why `VarSet.Depth` is **185 mm**, measured off the real box on
+  2026-09-18, rather than matching the box length. **Do not lengthen `Depth` to match the box
+  and do not add a back wall** — either defeats the mechanism and the box slides straight
+  through. The far end stays open so it can be pushed back out.
 - **`NumHoles` countersunk M3 clearance holes per flange**, `2 × NumHoles` total (**8 at the
-  current `NumHoles = 4`** — reduced from 6/flange on 2026-09-17 as overkill; pitch 48.75 mm,
-  end margins 24.375 mm): 3.4 mm bore, 6.7 mm × 90° countersink, depth bound to `FlangThickness`.
+  current `NumHoles = 4`** — reduced from 6/flange on 2026-09-17 as overkill; pitch 46.25 mm,
+  end margins 23.125 mm): 3.4 mm bore, 6.7 mm × 90° countersink, depth bound to `FlangThickness`.
   Countersinks open **downward** (Ø6.6 at z=48, closing to Ø3.4 by z≈49.7) so the heads seat
   flush on the flange *underside* — verified by measurement, not assumed.
 - Both flanges are drilled from **one sketch**: `Sketch003` holds two circles held `Symmetric`
@@ -95,15 +102,16 @@ reason about — but the *physical* relationship still matters and cannot be rea
 | `macros/export_print_files.FCMacro` | Exports the Body alone to `stl/` | the FCStd | ✅ idempotent |
 | `macros/export_test_coupon.FCMacro` | Cuts two test pieces from the solid | the FCStd | ✅ idempotent; **does not modify the model** |
 | `stl/Lockbox Bracket.stl` | Printable mesh, full part | the FCStd | ✅ watertight, manifold, no self-intersections |
-| `stl/Lockbox Bracket-cornertest.stl` | **Quick fit test** — 52 × 32.38 × 52 mm, one wall + flange + 1 bore, 5.6% of the part | the FCStd | ✅ watertight |
-| `stl/Lockbox Bracket-testcoupon.stl` | **Width test** — 225.5 × 32.38 × 52 mm, full cross-section, 2 bores, 16.6% of the part | the FCStd | ✅ watertight |
+| `stl/Lockbox Bracket-cornertest.stl` | **Quick fit test** — 52 × 31.13 × 52 mm, one wall + flange + 1 bore, 5.7% of the part | the FCStd | ✅ watertight |
+| `stl/Lockbox Bracket-testcoupon.stl` | **Width test** — 225.5 × 31.13 × 52 mm, full cross-section, 2 bores, 16.8% of the part | the FCStd | ✅ **printed 2026-09-18, fit confirmed snug** |
 
 Both test pieces are cut from the part's **real open end** up to 8 mm past the first bore, so
 they carry the genuine end geometry and the true 24.375 mm end margin — not a slab milled out
 of the middle. The box goes in through the same opening it will use for real. Regenerate with
 `macros/export_test_coupon.FCMacro`; `PAST_HOLE` at the top controls how far past the bore
 they stop.
-| `3mf/Lockbox Bracket.3mf` | Creality Print slicer project — PETG, 4 walls | the FCStd | ⚠️ **geometry STALE** (12-hole version). Settings are current; re-import the STL and re-slice. |
+| `3mf/Lockbox Bracket.3mf` | Creality Print slicer project — PETG, 4 walls | the FCStd | ⚠️ **geometry STALE** (12 holes, 195 mm). Settings are current; graft or re-import and re-slice. |
+| `3mf/Lockbox Bracket-widthtest.3mf` | Sliced width-test coupon | the FCStd | ⚠️ stale (195 mm version) — the one that was printed |
 
 **There is no `Params.FCStd`, and that is deliberate.**
 
@@ -148,6 +156,8 @@ they stop.
   pattern instance fell outside, giving 6 asymmetric holes instead of 8.
 
   - `NumHoles` **is** safe (verified at 1, 4, 6 and 8).
+  - A **10 mm step is safe**: `Depth` 195 → 185 on 2026-09-18 held all 8 bores with
+    symmetric 23.125 mm margins. 20 mm steps also held. The failure needs a big jump.
   - **Workaround today:** change `VarSet.Depth` in steps of ~20 mm rather than one jump, then
     **re-measure the bore count**. Never trust a clean recompute or a clean audit here.
   - **Proper fix, not yet done:** replace the unsigned `Distance` with a signed `DistanceY`
@@ -190,7 +200,7 @@ they stop.
 In-document `VarSet`, 13 variables, all `App::PropertyLength` except `NumHoles`
 (`App::PropertyInteger`):
 
-- **Shell geometry:** `Width` (169.5), `Depth` (195.0), `WallHeight` (48.0),
+- **Shell geometry:** `Width` (169.5), `Depth` (**185.0** — see retention note), `WallHeight` (48.0),
   `WallThickness` (2.0), `CornerRadius` (7.0)
 - **Flange:** `FlangWidth` (30.0), `FlangThickness` (4.0), `FlangRadius` (2.0)
   *(note the spelling — `Flang`, not `Flange`; it is consistent across all bindings, so leave it)*
