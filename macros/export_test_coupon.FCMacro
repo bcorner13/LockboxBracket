@@ -13,11 +13,13 @@ without committing to the full 3.5 hour print.
      WallThickness with calipers for that.
 
   2. stl/Lockbox Bracket-testcoupon.stl   <-- THE WIDTH TEST
-     The full cross-section, kept deliberately SHALLOW, with a bore in each
-     flange. Full width is mandatory - it is the only way to check the box
-     actually drops between the walls - but the depth is trimmed to the
-     minimum that still holds a hole and stays rigid enough not to flex and
-     give a false fit reading.
+     The full cross-section. Full width is mandatory - it is the only way to
+     check the box actually drops between the walls.
+
+Both pieces are cut from the part's REAL OPEN END up to just past the first
+bore, so they carry the genuine end geometry and the true end margin rather
+than being a slab milled out of the middle. The box goes in through the same
+opening it will use for real.
 
 HOW IT WORKS - and why it does NOT touch the parameters:
 
@@ -53,10 +55,11 @@ DOC_NAME = "Unnamed"
 PROJECT = ("/Users/bradleycorner/Documents/3dPrinting/Commercial License/"
            "Lockbox Bracket")
 
-COUPON_DEPTH = 25.0         # depth of the full-WIDTH coupon, mm. Full width is
-                            # non-negotiable; this is trimmed to keep it cheap.
-                            # Do not go much below ~20 mm or the walls flex.
-CORNER_DEPTH = 30.0         # depth of the small corner test, mm
+PAST_HOLE = 8.0             # how far past the FIRST bore centre to cut, mm.
+                            # Both pieces run from the part's real open end to
+                            # here, so they carry the genuine end geometry and
+                            # the true end margin - not a slab milled out of
+                            # the middle. 8 mm clears the 6.7 mm countersink.
 CORNER_INBOARD = 22.0       # how much floor to keep inboard of the wall, mm
 BORE_RADIUS = 1.7
 TOL = 0.05
@@ -77,10 +80,16 @@ bores = sorted({(round(f.Surface.Center.x, 4), round(f.Surface.Center.y, 4))
                 if f.Surface.__class__.__name__ == "Cylinder"
                 and abs(f.Surface.Radius - BORE_RADIUS) < TOL})
 if not bores:
-    raise RuntimeError("No M3 bores found - nothing to centre a test piece on.")
+    raise RuntimeError("No M3 bores found - nothing to size a test piece by.")
 
-mid_y = 0.5 * (bb.YMin + bb.YMax)
 PAD = 10.0
+
+# cut from the real open end of the channel up to just past the first bore
+first_bore_y = min(b[1] for b in bores)
+Y_START = bb.YMin
+Y_END = first_bore_y + PAST_HOLE
+if Y_END >= bb.YMax:
+    raise RuntimeError("PAST_HOLE overruns the part - nothing would be cut.")
 
 
 def slice_out(x0, x1, y0, y1, label, filename, want_bores):
@@ -127,27 +136,24 @@ def slice_out(x0, x1, y0, y1, label, filename, want_bores):
 
 # ---------------------------------------------- 1. small corner test
 # take the +X flange, its wall, and a little floor, around one bore
-bore_x = max(b[0] for b in bores)
-corner_y = min((b[1] for b in bores if b[0] == bore_x), key=lambda y: abs(y - mid_y))
 wall_inner_x = 0.5 * float(vs.Width) - float(vs.WallThickness)
 
 slice_out(
     x0=wall_inner_x - CORNER_INBOARD,
     x1=bb.XMax + PAD,
-    y0=corner_y - CORNER_DEPTH / 2.0,
-    y1=corner_y + CORNER_DEPTH / 2.0,
+    y0=Y_START,
+    y1=Y_END,
     label="CORNER TEST  (quick - fastener + wall/flange section)",
     filename="Lockbox Bracket-cornertest.stl",
     want_bores=1,
 )
 
 # ---------------------------------------------- 2. full-section coupon
-coupon_y = min((b[1] for b in bores), key=lambda y: abs(y - mid_y))
 slice_out(
     x0=bb.XMin - PAD,
     x1=bb.XMax + PAD,
-    y0=coupon_y - COUPON_DEPTH / 2.0,
-    y1=coupon_y + COUPON_DEPTH / 2.0,
+    y0=Y_START,
+    y1=Y_END,
     label="WIDTH TEST  (full cross-section - does the box fit between the walls?)",
     filename="Lockbox Bracket-testcoupon.stl",
     want_bores=2,

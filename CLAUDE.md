@@ -95,8 +95,14 @@ reason about — but the *physical* relationship still matters and cannot be rea
 | `macros/export_print_files.FCMacro` | Exports the Body alone to `stl/` | the FCStd | ✅ idempotent |
 | `macros/export_test_coupon.FCMacro` | Cuts two test pieces from the solid | the FCStd | ✅ idempotent; **does not modify the model** |
 | `stl/Lockbox Bracket.stl` | Printable mesh, full part | the FCStd | ✅ watertight, manifold, no self-intersections |
-| `stl/Lockbox Bracket-cornertest.stl` | **Quick fit test** — 52 × 30 × 52 mm, one wall + flange + 1 bore, 5.2% of the part | the FCStd | ✅ watertight |
-| `stl/Lockbox Bracket-testcoupon.stl` | **Width test** — 225.5 × 25 × 52 mm, full cross-section, 2 bores, 12.8% of the part | the FCStd | ✅ watertight |
+| `stl/Lockbox Bracket-cornertest.stl` | **Quick fit test** — 52 × 32.38 × 52 mm, one wall + flange + 1 bore, 5.6% of the part | the FCStd | ✅ watertight |
+| `stl/Lockbox Bracket-testcoupon.stl` | **Width test** — 225.5 × 32.38 × 52 mm, full cross-section, 2 bores, 16.6% of the part | the FCStd | ✅ watertight |
+
+Both test pieces are cut from the part's **real open end** up to 8 mm past the first bore, so
+they carry the genuine end geometry and the true 24.375 mm end margin — not a slab milled out
+of the middle. The box goes in through the same opening it will use for real. Regenerate with
+`macros/export_test_coupon.FCMacro`; `PAST_HOLE` at the top controls how far past the bore
+they stop.
 | `3mf/Lockbox Bracket.3mf` | Creality Print slicer project — PETG, 4 walls | the FCStd | ⚠️ **geometry STALE** (12-hole version). Settings are current; re-import the STL and re-slice. |
 
 **There is no `Params.FCStd`, and that is deliberate.**

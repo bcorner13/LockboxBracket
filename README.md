@@ -33,15 +33,16 @@ see the red warning in `CLAUDE.md`.**
 
 | File | Size | Tests |
 |---|---|---|
-| `stl/Lockbox Bracket-cornertest.stl` | 52 × 30 × 52 mm, **5.2%** of the part | M3 screw fit in a horizontal bore, wall + flange thickness, corner fillet |
-| `stl/Lockbox Bracket-testcoupon.stl` | 225.5 × 25 × 52 mm, **12.8%** | the above **plus the interior width** — does the box drop between the walls |
+| `stl/Lockbox Bracket-cornertest.stl` | 52 × 32.38 × 52 mm, **5.6%** of the part | M3 screw fit in a horizontal bore, wall + flange thickness, corner fillet |
+| `stl/Lockbox Bracket-testcoupon.stl` | 225.5 × 32.38 × 52 mm, **16.6%** | the above **plus the interior width** — does the box drop between the walls |
 | `stl/Lockbox Bracket.stl` | full part | — |
 
-The width test is kept shallow on purpose: full width is the only way to check the box fit,
-but the depth is trimmed to the minimum that still holds a bore and stays stiff enough not to
-flex and give a false reading. Interior width is **165.50 mm**.
+Both are cut from the part's **real open end** up to 8 mm past the first hole, so they carry
+the genuine end geometry and the true 24.375 mm end margin — the box goes in through the same
+opening it will use for real. Full width is the only way to check the box fit; interior width
+is **165.50 mm** if you would rather caliper it first.
 
-| Corner test (5.2%) | Width test (12.8%) |
+| Corner test (5.6%) | Width test (16.6%) |
 |---|---|
 | ![Corner test coupon](images/corner-test-coupon.png) | ![Width test coupon](images/width-test-coupon.png) |
 
