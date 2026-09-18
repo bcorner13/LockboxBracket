@@ -259,7 +259,29 @@ Relevant to this project:
 
 ## Print profile
 
-**No successful test print yet — profile TBD.**
+**No successful test print yet — profile below is INTENDED, not validated.** Do not treat it
+as the working profile until a part comes off the plate. Fill the real one from that print.
+
+Held in `3mf/Lockbox Bracket.3mf` (Creality Print project). Needs a re-slice in Creality Print
+— the settings were changed after the last slice.
+
+| Setting | Value | Notes |
+|---|---|---|
+| Printer | Creality K2 Plus, 0.4 nozzle | |
+| Material | **CR-PETG** (slot 4) | Switched from Hyper PLA-CF 2026-09-17. PLA creeps under sustained load; this bracket carries a box continuously. PLA-CF is also brittle against shock loading. |
+| Layer height | 0.16 mm (first layer 0.2) | 1219 layers on end |
+| Walls | **4** | Raised from 2. The 4 mm flange is built from perimeters, not shells, in this orientation — at 2 walls its fastener-bearing core was ~2.3 mm of 15% infill. |
+| Infill | 15% grid | Adequate once walls carry the flange |
+| Top / bottom layers | 5 / 4 | Applies to the open channel ends only; not load-critical |
+| Supports | **None** | The 90° countersinks land at 45° |
+| Brim | auto, 5 mm | Needed: 195 mm tall on a 225.5 × 52 mm footprint |
+| Orientation | **On end — part Y vertical** | Deliberate. Puts the installed load axis (part Z) in the layer plane; interlayer tension falls along the channel, which carries almost nothing. **Do not lay it flat.** |
+| Est. print | ~3h36m / 154 g / $4.93 at 2 walls | Re-slice for the 4-wall figure |
+
+**Watch on the first print:** the M3 bores are *horizontal* in this orientation, so they print
+slightly undersize (droop at the top of the bore) and PETG shrinks more than PLA. If the M3×10
+screws bind, do **not** edit geometry — change `Hole.ThreadFit` from `Medium` to `Loose`
+(ISO 273 coarse → Ø3.6 mm). That is the parametric knob for this fit; see hard rule #4.
 
 `3mf/Lockbox Bracket.3mf` was sliced on 2026-09-17 from the pre-remediation model, but there is
 no confirmed print result. Do not treat it as a validated profile, and re-slice after the hole
