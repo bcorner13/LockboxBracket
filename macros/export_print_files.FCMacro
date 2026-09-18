@@ -10,9 +10,11 @@ FreeCADGui.Selection. With the Assembly selected it happily meshes the twelve
 M3x10 screws into the print file, which is useless to a slicer. This macro
 pins the selection to the Body so that cannot happen.
 
-Outputs (overwritten in place):
+Output (overwritten in place):
     stl/Lockbox Bracket.stl
-    3mf/Lockbox Bracket.3mf
+
+It writes the STL only. 3mf/ holds SLICER PROJECTS (Creality Print), which carry
+print settings this macro knows nothing about - it must not clobber them.
 
 It also LEAVES THE BODY SELECTED, so you can immediately run the
 3D_Printer_3mf_Workflow macro afterwards if you want its slicer-settings
@@ -61,9 +63,7 @@ tmp.Mesh = mesh
 
 try:
     stl_path = os.path.join(PROJECT, "stl", BASENAME + ".stl")
-    mf_path = os.path.join(PROJECT, "3mf", BASENAME + ".3mf")
     Mesh.export([tmp], stl_path)
-    Mesh.export([tmp], mf_path)
 finally:
     doc.removeObject(tmp.Name)
 
@@ -73,8 +73,7 @@ print("  facets : %d" % mesh.CountFacets)
 print("  bbox   : %.2f x %.2f x %.2f mm" % (bb.XLength, bb.YLength, bb.ZLength))
 print("  z range: %.2f .. %.2f   (screws would push this past the flange top)"
       % (bb.ZMin, bb.ZMax))
-for p in (stl_path, mf_path):
-    print("  %8d bytes  %s" % (os.path.getsize(p), os.path.basename(p)))
+print("  %8d bytes  %s" % (os.path.getsize(stl_path), os.path.basename(stl_path)))
 
 # leave ONLY the Body selected, ready for the 3mf workflow macro
 try:
